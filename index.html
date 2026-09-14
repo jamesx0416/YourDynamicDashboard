@@ -10,6 +10,19 @@
     />
     <title>New Tab</title>
 
+    <style id="ydd-critical-startup">
+      html {
+        background: #030303;
+      }
+      html:not(.ydd-startup-ready) {
+        scrollbar-color: transparent transparent;
+      }
+      html:not(.ydd-startup-ready) ::-webkit-scrollbar-track,
+      html:not(.ydd-startup-ready) ::-webkit-scrollbar-thumb,
+      html:not(.ydd-startup-ready) ::-webkit-scrollbar-corner {
+        background: transparent !important;
+      }
+    </style>
     <script src="src/theme-init.js"></script>
     <link rel="icon" type="image/png" href="assets/icons/icon32.png" />
     <link rel="stylesheet" href="css/main.css" />

@@ -89,6 +89,12 @@ try {
   // Background state
   var bgMode = localStorage.getItem("randomBgMode");
   var bg = localStorage.getItem("backgroundImage");
+  var hasIdbBg = localStorage.getItem("has_idb_bg") === "true";
+  var lowResBg = localStorage.getItem("lowResBg");
+  var lowResPreview = typeof lowResBg === "string" &&
+      lowResBg.startsWith("data:image/")
+    ? lowResBg
+    : null;
   var savedBg = localStorage.getItem("savedBgUrl");
   var randomBgSchedule = localStorage.getItem("randomBgSchedule");
   var randomBgCurrentPreview = localStorage.getItem("randomBgCurrentPreview");
@@ -321,6 +327,32 @@ try {
     imgUrl = readStoredUrl(bg);
   }
 
+  if (hasIdbBg) {
+    document.documentElement.classList.add("ydd-custom-bg-pending");
+    document.addEventListener(
+      "DOMContentLoaded",
+      function () {
+        document.body.classList.add("has-custom-bg");
+      },
+      { once: true },
+    );
+
+    if (lowResPreview && !imgUrl) {
+      var startupStyle = document.createElement("style");
+      startupStyle.id = "ydd-startup-background";
+      var previewCssUrl = JSON.stringify(lowResPreview);
+      startupStyle.textContent =
+        "html.ydd-custom-bg-pending body:not(.has-custom-bg) {" +
+        "background-image: linear-gradient(rgba(0,0,0,.25), rgba(0,0,0,.25)), url(" +
+        previewCssUrl +
+        ") !important; background-size: cover !important; background-position: center !important; }" +
+        "html.ydd-custom-bg-pending body.has-custom-bg {" +
+        "background-image: url(" + previewCssUrl +
+        ") !important; background-size: cover !important; background-position: center !important; }";
+      document.head.appendChild(startupStyle);
+    }
+  }
+
   if (imgUrl && imgUrl !== "null" && imgUrl !== '"null"') {
     var style = document.createElement("style");
     style.id = "ydd-remote-background";
@@ -334,7 +366,6 @@ try {
     document.head.appendChild(style);
   }
 
-  var hasIdbBg = localStorage.getItem("has_idb_bg") === "true";
   if (imgUrl || hasIdbBg) {
     document.documentElement.classList.add("ydd-custom-bg-pending");
   }
@@ -403,6 +434,7 @@ try {
           style.textContent = "body { background-image: url(" + objectUrl +
             ") !important; background-size: cover !important; background-position: center !important; }";
           document.head.appendChild(style);
+          document.getElementById("ydd-startup-background")?.remove();
           if (document.body) {
             document.body.classList.add("has-custom-bg");
           } else {
@@ -412,6 +444,10 @@ try {
           }
         } else if (!imgUrl) {
           document.documentElement.classList.remove("ydd-custom-bg-pending");
+          document.getElementById("ydd-startup-background")?.remove();
+          localStorage.removeItem("has_idb_bg");
+          localStorage.removeItem("lowResBg");
+          document.body?.classList.remove("has-custom-bg");
         }
         var p = document.getElementById("idb-preloader");
         if (p) p.remove();

@@ -35,6 +35,8 @@ import {
 // Background configuration
 const RANDOM_BG_QUEUE_TARGET = 2;
 const RANDOM_BG_PREVIEW_WIDTH = 480;
+const STARTUP_BG_PREVIEW_WIDTH = 64;
+const STARTUP_BG_PREVIEW_QUALITY = 0.48;
 const RANDOM_BG_FETCH_TIMEOUT_MS = 12000;
 const RANDOM_BG_MIN_WIDTH = 800;
 const RANDOM_BG_MIN_HEIGHT = 600;
@@ -1441,7 +1443,7 @@ export class SettingsManager {
       document.body.classList.add("has-custom-bg");
       document.body.style.backgroundImage = `url(${bg})`;
       if (this.els.removeBg) this.els.removeBg.classList.remove("hidden");
-    } else {
+    } else if (localStorage.getItem("has_idb_bg") !== "true") {
       document.body.classList.remove("has-custom-bg");
     }
 
@@ -1457,6 +1459,10 @@ export class SettingsManager {
           this.resetGrayscaleForCurrentContext();
           if (this.els.removeBg) this.els.removeBg.classList.remove("hidden");
           this.updateAutoThemeGlowState();
+
+          if (!localStorage.getItem("lowResBg")) {
+            void this._storeStartupBackgroundPreview(blob);
+          }
         }
       })
       .catch((err) => console.error("IndexedDB load error:", err));
@@ -3207,6 +3213,7 @@ export class SettingsManager {
   _removePreloadedBackgroundStyles() {
     document.getElementById("ydd-remote-background")?.remove();
     document.getElementById("ydd-idb-background")?.remove();
+    document.getElementById("ydd-startup-background")?.remove();
     document.getElementById("idb-preloader")?.remove();
   }
 
@@ -3603,7 +3610,11 @@ export class SettingsManager {
     return true;
   }
 
-  async _createRandomBackgroundPreview(blob) {
+  async _createBackgroundPreview(
+    blob,
+    maxWidth = RANDOM_BG_PREVIEW_WIDTH,
+    quality = 0.58,
+  ) {
     let source = null;
     let objectUrl = null;
     try {
@@ -3625,20 +3636,35 @@ export class SettingsManager {
       const sourceHeight = source.height || source.naturalHeight;
       if (!sourceWidth || !sourceHeight) return null;
 
-      const scale = Math.min(1, RANDOM_BG_PREVIEW_WIDTH / sourceWidth);
+      const scale = Math.min(1, maxWidth / sourceWidth);
       const canvas = document.createElement("canvas");
       canvas.width = Math.max(1, Math.round(sourceWidth * scale));
       canvas.height = Math.max(1, Math.round(sourceHeight * scale));
       const context = canvas.getContext("2d");
       if (!context) return null;
       context.drawImage(source, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL("image/jpeg", 0.58);
+      return canvas.toDataURL("image/jpeg", quality);
     } catch (error) {
       return null;
     } finally {
       source?.close?.();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     }
+  }
+
+  async _storeStartupBackgroundPreview(blob) {
+    const preview = await this._createBackgroundPreview(
+      blob,
+      STARTUP_BG_PREVIEW_WIDTH,
+      STARTUP_BG_PREVIEW_QUALITY,
+    );
+    try {
+      if (preview) localStorage.setItem("lowResBg", preview);
+      else localStorage.removeItem("lowResBg");
+    } catch (error) {
+      console.warn("Startup background preview could not be saved:", error);
+    }
+    return preview;
   }
 
   async _useRandomBackgroundEntry(
@@ -3780,7 +3806,7 @@ export class SettingsManager {
         return {
           url: finalUrl,
           blob: wallpaperBlob,
-          preview: await this._createRandomBackgroundPreview(wallpaperBlob),
+          preview: await this._createBackgroundPreview(wallpaperBlob),
         };
       } catch (error) {
         lastError = error?.name === "AbortError"
@@ -3996,7 +4022,7 @@ export class SettingsManager {
       this._applyBackgroundUrl(objectUrl);
 
       localStorage.setItem("has_idb_bg", "true");
-      localStorage.removeItem("lowResBg");
+      await this._storeStartupBackgroundPreview(file);
       state.set("randomBgMode", null);
       state.set("randomBgTime", null);
       state.set("savedBgUrl", null);
