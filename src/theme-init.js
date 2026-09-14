@@ -95,6 +95,15 @@ try {
       lowResBg.startsWith("data:image/")
     ? lowResBg
     : null;
+  if (hasIdbBg && lowResPreview) {
+    document.documentElement.style.backgroundImage =
+      'linear-gradient(rgba(0,0,0,.25), rgba(0,0,0,.25)), url("' +
+      lowResPreview.replace(/"/g, '%22') +
+      '")';
+    document.documentElement.style.backgroundSize = "cover";
+    document.documentElement.style.backgroundPosition = "center";
+    document.documentElement.style.backgroundRepeat = "no-repeat";
+  }
   var savedBg = localStorage.getItem("savedBgUrl");
   var randomBgSchedule = localStorage.getItem("randomBgSchedule");
   var randomBgCurrentPreview = localStorage.getItem("randomBgCurrentPreview");
@@ -435,6 +444,10 @@ try {
             ") !important; background-size: cover !important; background-position: center !important; }";
           document.head.appendChild(style);
           document.getElementById("ydd-startup-background")?.remove();
+          document.documentElement.style.removeProperty("background-image");
+          document.documentElement.style.removeProperty("background-size");
+          document.documentElement.style.removeProperty("background-position");
+          document.documentElement.style.removeProperty("background-repeat");
           if (document.body) {
             document.body.classList.add("has-custom-bg");
           } else {

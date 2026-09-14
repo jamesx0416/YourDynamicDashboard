@@ -1699,6 +1699,7 @@ export class SettingsManager {
         state.set("lastSettingsView", "full");
       } else if (isMiniOpen) {
         this.els.popup.classList.remove("visible");
+        this.els.popup.inert = true;
         this.els.btn.setAttribute("aria-expanded", "false");
         this.els.popup.setAttribute("aria-hidden", "true");
         state.set("lastSettingsView", "mini");
@@ -1707,6 +1708,7 @@ export class SettingsManager {
         if (lastView === "full" && fullModal) {
           fullModal.open();
         } else {
+          this.els.popup.inert = false;
           this.els.popup.classList.add("visible");
           this.els.btn.setAttribute("aria-expanded", "true");
           this.els.popup.setAttribute("aria-hidden", "false");
@@ -1768,6 +1770,7 @@ export class SettingsManager {
         !this.els.btn.contains(e.target)
       ) {
         this.els.popup.classList.remove("visible");
+        this.els.popup.inert = true;
         this.els.btn.setAttribute("aria-expanded", "false");
         this.els.popup.setAttribute("aria-hidden", "true");
         state.set("lastSettingsView", "mini");

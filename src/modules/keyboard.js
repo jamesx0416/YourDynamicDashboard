@@ -184,6 +184,7 @@ export class KeyboardManager {
     const miniButton = document.getElementById("settings-toggle-button");
     if (miniPopup?.classList.contains("visible")) {
       miniPopup.classList.remove("visible");
+      miniPopup.inert = true;
       miniPopup.setAttribute("aria-hidden", "true");
       miniButton?.setAttribute("aria-expanded", "false");
       state.set("lastSettingsView", "mini");
@@ -191,6 +192,7 @@ export class KeyboardManager {
     }
     if (fullModal?.isOpen) fullModal.close();
     if (!miniPopup) return false;
+    miniPopup.inert = false;
     miniPopup.classList.add("visible");
     miniPopup.setAttribute("aria-hidden", "false");
     miniButton?.setAttribute("aria-expanded", "true");

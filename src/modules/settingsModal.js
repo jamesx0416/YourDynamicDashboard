@@ -2061,6 +2061,11 @@ export class FullSettingsModal {
 
     const miniPopup = document.getElementById("settings-popup");
     if (miniPopup) {
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && miniPopup.contains(focused)) {
+        focused.blur();
+      }
+      miniPopup.inert = true;
       miniPopup.classList.remove("visible");
       miniPopup.setAttribute("aria-hidden", "true");
       document.getElementById("settings-toggle-button")?.setAttribute(
