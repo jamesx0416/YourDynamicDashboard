@@ -321,9 +321,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.documentElement.classList.add("ydd-startup-ready");
   };
   if (localStorage.getItem("has_idb_bg") === "true") {
-    void backgroundStartup.finally(() => {
-      window.requestAnimationFrame(revealDashboard);
-    });
+    void backgroundStartup.finally(revealDashboard);
   } else {
     window.requestAnimationFrame(revealDashboard);
   }

@@ -1457,17 +1457,22 @@ export class SettingsManager {
       this.resetGrayscaleForCurrentContext();
     }
 
-    const storedBackgroundReady = secondStorage
-      .getImage()
-      .then((blob) => {
-        if (blob) {
-          document.body.classList.add("has-custom-bg");
-          this.resetGrayscaleForCurrentContext();
-          if (this.els.removeBg) this.els.removeBg.classList.remove("hidden");
-          this.updateAutoThemeGlowState();
-        }
-      })
-      .catch((err) => console.error("IndexedDB load error:", err));
+    const hasStoredBackground =
+      localStorage.getItem("has_idb_bg") === "true";
+    const markStoredBackgroundReady = () => {
+      document.body.classList.add("has-custom-bg");
+      this.resetGrayscaleForCurrentContext();
+      if (this.els.removeBg) this.els.removeBg.classList.remove("hidden");
+      this.updateAutoThemeGlowState();
+    };
+    const storedBackgroundReady = hasStoredBackground
+      ? Promise.resolve().then(markStoredBackgroundReady)
+      : secondStorage
+        .getImage()
+        .then((blob) => {
+          if (blob) markStoredBackgroundReady();
+        })
+        .catch((err) => console.error("IndexedDB load error:", err));
     this._backgroundReady = Promise.allSettled([
       backgroundReady,
       storedBackgroundReady,

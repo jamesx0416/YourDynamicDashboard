@@ -92,10 +92,8 @@ try {
       root.style.removeProperty("background-position");
       root.style.removeProperty("background-repeat");
 
-      // Keep the decoded layer visible for one painted frame after body takes over.
-      window.requestAnimationFrame(function () {
-        window.requestAnimationFrame(removeStartupLayer);
-      });
+      // Keep the decoded layer through the next paint while the body takes over.
+      window.requestAnimationFrame(removeStartupLayer);
     };
 
     var failStartup = function () {
@@ -178,11 +176,10 @@ try {
           );
           window.setTimeout(complete, 350);
 
-          window.requestAnimationFrame(function () {
-            window.requestAnimationFrame(function () {
-              document.body?.classList.add("ydd-startup-wallpaper-visible");
-            });
-          });
+          // Commit the transparent starting state now, then begin the fade without
+          // deliberately waiting one or two display frames.
+          void startupLayer.offsetWidth;
+          document.body.classList.add("ydd-startup-wallpaper-visible");
         }).catch(failStartup);
       };
       getRequest.onerror = failStartup;
