@@ -35,11 +35,11 @@ try {
       "#ydd-startup-wallpaper {" +
       "position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -2;" +
       "display: block; pointer-events: none; object-fit: cover; object-position: center;" +
-      "opacity: 0; transition: opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;" +
+      "opacity: 0; transition: opacity 0.1s cubic-bezier(0.22, 1, 0.36, 1) !important;" +
       "}" +
       "body.ydd-startup-wallpaper-visible #ydd-startup-wallpaper { opacity: 1; }" +
       "html.ydd-browser-default-startup body.has-custom-bg::before {" +
-      "opacity: 0 !important; transition: opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;" +
+      "opacity: 0 !important; transition: opacity 0.1s cubic-bezier(0.22, 1, 0.36, 1) !important;" +
       "}" +
       "html.ydd-browser-default-startup body.has-custom-bg.ydd-startup-wallpaper-visible::before {" +
       "opacity: 1 !important;" +
@@ -177,7 +177,7 @@ try {
               },
               { once: true },
             );
-            window.setTimeout(complete, 350);
+            window.setTimeout(complete, 200);
 
             // Commit the transparent starting state now, then begin the fade without
             // deliberately waiting one or two display frames.
