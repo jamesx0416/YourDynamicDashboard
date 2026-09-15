@@ -2,6 +2,10 @@
 try {
   var root = document.documentElement;
   var hasStoredBackground = localStorage.getItem("has_idb_bg") === "true";
+  var storedStartupCanvasColor = localStorage.getItem("startupCanvasColor");
+  var startupCanvasColor = /^#[\da-f]{6}$/i.test(storedStartupCanvasColor || "")
+    ? storedStartupCanvasColor
+    : "Canvas";
 
   if (hasStoredBackground) {
     var resolveWallpaperStartup = null;
@@ -20,7 +24,7 @@ try {
       "html.ydd-browser-default-startup," +
       "html.ydd-browser-default-startup body {" +
       "color-scheme: light dark;" +
-      "background-color: Canvas !important;" +
+      "background-color: " + startupCanvasColor + " !important;" +
       "background-image: none !important;" +
       "}" +
       "html.ydd-browser-default-startup ::-webkit-scrollbar-track," +

@@ -46,6 +46,7 @@ const EXTRA_STORAGE_KEYS = [
   "randomBgSchedule",
   "randomBgTime",
   "savedBgUrl",
+  "startupCanvasColor",
   "showDate",
   "showEditableText",
   "showShortcuts",
@@ -71,6 +72,7 @@ const RAW_STORAGE_KEYS = new Set([
   "activeToolTab",
   "has_idb_bg",
   "hideGpsConsent",
+  "startupCanvasColor",
 ]);
 
 const INTERNAL_STORAGE_KEYS = new Set(["ydd_daily_greeting"]);
@@ -208,6 +210,12 @@ export function validateYddStorageEntries(entries) {
       !["true", "false"].includes(rawValue)
     ) {
       throw new TypeError(`Invalid stored flag for ${key}.`);
+    }
+    if (
+      key === "startupCanvasColor" &&
+      !/^#[\da-f]{6}$/i.test(rawValue)
+    ) {
+      throw new TypeError("Invalid startup background color.");
     }
     if (!RAW_STORAGE_KEYS.has(key) && !key.startsWith("welcomeShown_")) {
       const parsedValue = JSON.parse(rawValue);

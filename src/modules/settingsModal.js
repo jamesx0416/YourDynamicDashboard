@@ -1010,6 +1010,14 @@ export class FullSettingsModal {
     const bgControls = this._el("div", { className: "background-controls" });
     bgControls.append(uploadBtn, bgFileInput, removeBtn);
 
+    const startupCanvasColor = this._el("input", {
+      type: "color",
+      id: "fs-startup-canvas-color",
+      className: "color-picker",
+    });
+    startupCanvasColor.setAttribute("aria-label", "Startup background color");
+    this.els.fsStartupCanvasColor = startupCanvasColor;
+
     const freezeBtn = this._el("button", {
       className: "settings-button hidden",
       id: "fs-freeze-btn",
@@ -1069,6 +1077,11 @@ export class FullSettingsModal {
     pane.appendChild(
       this._section("Background", [
         this._row("Custom BG", "Upload an image.", bgControls),
+        this._row(
+          "Startup BG",
+          "Match your browser new tab color before wallpaper loads.",
+          startupCanvasColor,
+        ),
         this._row(randomBgLabel, "Fetch image from Lorem Picsum.", rndControls),
         blurRow,
       ]),
@@ -1601,6 +1614,12 @@ export class FullSettingsModal {
       }
     });
 
+    this.els.fsStartupCanvasColor.addEventListener("input", (e) => {
+      localStorage.setItem("startupCanvasColor", e.target.value);
+      const miniPicker = document.getElementById("startup-canvas-color-picker");
+      if (miniPicker) miniPicker.value = e.target.value;
+    });
+
     this.els.fsBlurSelect.addEventListener("change", (e) => {
       state.set("bgBlurIntensity", e.target.value);
       const blurMap = { 0: 0, 10: 2, 20: 4, 30: 6, 40: 8, 50: 10 };
@@ -2034,6 +2053,10 @@ export class FullSettingsModal {
     this.els.fsScPosition.value = state.get("shortcutsPosition") || "bottom";
     this.els.fsLocInput.value = state.get("yd_city") || "";
     this.els.fsBlurSelect.value = state.get("bgBlurIntensity") || "0";
+    const startupCanvasColor = localStorage.getItem("startupCanvasColor");
+    if (/^#[\da-f]{6}$/i.test(startupCanvasColor || "")) {
+      this.els.fsStartupCanvasColor.value = startupCanvasColor;
+    }
     this.els.fsRandomBgSchedule.value = state.get("randomBgSchedule") || "1m";
 
     const isAnalog = state.get("clockType") === "analog";

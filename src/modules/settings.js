@@ -1144,6 +1144,7 @@ export class SettingsManager {
       uploadBg: document.getElementById("upload-bg-button"),
       bgInput: document.getElementById("bg-file-input"),
       removeBg: document.getElementById("remove-bg-button"),
+      startupCanvasColor: document.getElementById("startup-canvas-color-picker"),
       randomBgFreeze: document.getElementById("random-bg-freeze-btn"),
       randomBgRnd: document.getElementById("random-bg-rnd-btn"),
       randomBgSchedule: document.getElementById("random-bg-schedule-select"),
@@ -1380,6 +1381,13 @@ export class SettingsManager {
       this.els.widgetControl.value = state.get("widgetControl") || "all";
     }
     if (this.els.locInput) this.els.locInput.value = state.get("yd_city") || "";
+
+    if (this.els.startupCanvasColor) {
+      const startupCanvasColor = localStorage.getItem("startupCanvasColor");
+      if (/^#[\da-f]{6}$/i.test(startupCanvasColor || "")) {
+        this.els.startupCanvasColor.value = startupCanvasColor;
+      }
+    }
 
     if (this.els.bgBlurSelect) {
       const savedBlur = state.get("bgBlurIntensity") || "0";
@@ -1721,6 +1729,14 @@ export class SettingsManager {
 
       setTimeout(() => this.els.btn.classList.remove("animating"), 400);
     });
+
+    if (this.els.startupCanvasColor) {
+      this.els.startupCanvasColor.addEventListener("input", (e) => {
+        localStorage.setItem("startupCanvasColor", e.target.value);
+        const fullPicker = document.getElementById("fs-startup-canvas-color");
+        if (fullPicker) fullPicker.value = e.target.value;
+      });
+    }
 
     if (this.els.bgBlurSelect) {
       this.els.bgBlurSelect.addEventListener("change", (e) => {
