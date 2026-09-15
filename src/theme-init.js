@@ -387,8 +387,10 @@ try {
     var preloader = document.createElement("style");
     preloader.id = "idb-preloader";
     var pColor = fallback || "#0a0a0a";
-    preloader.textContent = "body { background-color: " + pColor +
-      " !important; background-image: none !important; transition: none !important; }";
+    preloader.textContent = hasIdbBg && lowResPreview
+      ? "body { background-color: transparent !important; transition: none !important; }"
+      : "body { background-color: " + pColor +
+        " !important; background-image: none !important; transition: none !important; }";
     document.head.appendChild(preloader);
   }
 
@@ -438,23 +440,40 @@ try {
           var objectUrl = URL.createObjectURL(usableBackground);
           preloadObjectUrl = objectUrl;
           window.__yddPreloadBackgroundUrl = objectUrl;
-          var style = document.createElement("style");
-          style.id = "ydd-idb-background";
-          style.textContent = "body { background-image: url(" + objectUrl +
-            ") !important; background-size: cover !important; background-position: center !important; }";
-          document.head.appendChild(style);
-          document.getElementById("ydd-startup-background")?.remove();
-          document.documentElement.style.removeProperty("background-image");
-          document.documentElement.style.removeProperty("background-size");
-          document.documentElement.style.removeProperty("background-position");
-          document.documentElement.style.removeProperty("background-repeat");
-          if (document.body) {
-            document.body.classList.add("has-custom-bg");
-          } else {
-            document.addEventListener("DOMContentLoaded", function () {
+
+          var fullBackground = new Image();
+          fullBackground.decoding = "async";
+          fullBackground.src = objectUrl;
+          var revealFullBackground = function () {
+            if (!preloadBackgroundEnabled || preloadObjectUrl !== objectUrl) return;
+            var style = document.createElement("style");
+            style.id = "ydd-idb-background";
+            style.textContent = "body { background-image: url(" + objectUrl +
+              ") !important; background-size: cover !important; background-position: center !important; }";
+            document.head.appendChild(style);
+            document.getElementById("ydd-startup-background")?.remove();
+            document.getElementById("idb-preloader")?.remove();
+            document.documentElement.style.removeProperty("background-image");
+            document.documentElement.style.removeProperty("background-size");
+            document.documentElement.style.removeProperty("background-position");
+            document.documentElement.style.removeProperty("background-repeat");
+            if (document.body) {
               document.body.classList.add("has-custom-bg");
+            } else {
+              document.addEventListener("DOMContentLoaded", function () {
+                document.body.classList.add("has-custom-bg");
+              });
+            }
+          };
+          var decodePromise = typeof fullBackground.decode === "function"
+            ? fullBackground.decode()
+            : new Promise(function (resolve, reject) {
+              fullBackground.onload = resolve;
+              fullBackground.onerror = reject;
             });
-          }
+          decodePromise.then(revealFullBackground).catch(function () {
+            if (!lowResPreview) revealFullBackground();
+          });
         } else if (!imgUrl) {
           document.documentElement.classList.remove("ydd-custom-bg-pending");
           document.getElementById("ydd-startup-background")?.remove();
