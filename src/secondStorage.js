@@ -33,8 +33,8 @@ function getStartupBackgroundTarget() {
 }
 
 async function createStartupBackgroundBlob(blob) {
-  if (!(blob instanceof Blob) || blob.type === "image/gif") return blob;
-  if (typeof createImageBitmap !== "function") return blob;
+  if (!(blob instanceof Blob) || blob.type === "image/gif") return null;
+  if (typeof createImageBitmap !== "function") return null;
 
   let bitmap = null;
   try {
@@ -58,7 +58,7 @@ async function createStartupBackgroundBlob(blob) {
       sourceY = Math.round((bitmap.height - sourceHeight) / 2);
     }
 
-    if (sourceWidth <= targetWidth && sourceHeight <= targetHeight) return blob;
+    if (sourceWidth <= targetWidth && sourceHeight <= targetHeight) return null;
 
     const canvas = typeof OffscreenCanvas === "function"
       ? new OffscreenCanvas(targetWidth, targetHeight)
@@ -67,7 +67,7 @@ async function createStartupBackgroundBlob(blob) {
         height: targetHeight,
       });
     const context = canvas.getContext("2d", { alpha: true });
-    if (!context) return blob;
+    if (!context) return null;
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = "high";
     context.drawImage(
@@ -83,22 +83,24 @@ async function createStartupBackgroundBlob(blob) {
     );
 
     const outputType = "image/webp";
+    let result = null;
     if (typeof canvas.convertToBlob === "function") {
-      return await canvas.convertToBlob({
+      result = await canvas.convertToBlob({
         type: outputType,
         quality: 0.95,
       });
+    } else {
+      result = await new Promise((resolve) => {
+        canvas.toBlob(
+          resolve,
+          outputType,
+          0.95,
+        );
+      });
     }
-
-    return await new Promise((resolve) => {
-      canvas.toBlob(
-        (result) => resolve(result instanceof Blob ? result : blob),
-        outputType,
-        0.95,
-      );
-    });
+    return result instanceof Blob && result.size > 0 ? result : null;
   } catch (error) {
-    return blob;
+    return null;
   } finally {
     bitmap?.close?.();
   }
@@ -237,13 +239,43 @@ function randomBackgroundIdentity(url) {
 export const secondStorage = {
   saveImage(blob) {
     return enqueueMutation(async () => {
+      const result = await runTransaction(
+        "readwrite",
+        (store) => store.put(blob, "current_bg"),
+      );
+
       const startupBlob = await createStartupBackgroundBlob(blob);
       const startupProfile = getStartupBackgroundTarget().profile;
-      return runTransaction("readwrite", (store) => {
-        store.put(startupBlob, STARTUP_BACKGROUND_KEY);
-        store.put(startupProfile, STARTUP_BACKGROUND_PROFILE_KEY);
-        return store.put(blob, "current_bg");
-      });
+      try {
+        await runTransaction("readwrite", (store) => {
+          if (startupBlob instanceof Blob) {
+            store.put(
+              `optimized:${startupProfile}`,
+              STARTUP_BACKGROUND_PROFILE_KEY,
+            );
+            return store.put(startupBlob, STARTUP_BACKGROUND_KEY);
+          }
+          store.put(
+            `original:${startupProfile}`,
+            STARTUP_BACKGROUND_PROFILE_KEY,
+          );
+          return store.delete(STARTUP_BACKGROUND_KEY);
+        });
+      } catch (error) {
+        // The original wallpaper is already safely stored. Optimization is a
+        // best-effort acceleration and must not make wallpaper saves fail.
+        try {
+          await runTransaction("readwrite", (store) => {
+            store.put(
+              `original:${startupProfile}`,
+              STARTUP_BACKGROUND_PROFILE_KEY,
+            );
+            return store.delete(STARTUP_BACKGROUND_KEY);
+          });
+        } catch (cleanupError) {
+        }
+      }
+      return result;
     });
   },
 
@@ -254,31 +286,70 @@ export const secondStorage = {
 
   async ensureStartupImage() {
     return enqueueMutation(async () => {
-      const targetProfile = getStartupBackgroundTarget().profile;
-      const existing = await runTransaction(
-        "readonly",
-        (store) => store.get(STARTUP_BACKGROUND_KEY),
-      );
-      const existingProfile = await runTransaction(
-        "readonly",
-        (store) => store.get(STARTUP_BACKGROUND_PROFILE_KEY),
-      );
-      if (existing instanceof Blob && existingProfile === targetProfile) {
+      try {
+        const targetProfile = getStartupBackgroundTarget().profile;
+        const existing = await runTransaction(
+          "readonly",
+          (store) => store.get(STARTUP_BACKGROUND_KEY),
+        );
+        const existingProfile = await runTransaction(
+          "readonly",
+          (store) => store.get(STARTUP_BACKGROUND_PROFILE_KEY),
+        );
+        if (
+          existing instanceof Blob &&
+          existingProfile === `optimized:${targetProfile}`
+        ) {
+          return true;
+        }
+        if (
+          !(existing instanceof Blob) &&
+          existingProfile === `original:${targetProfile}`
+        ) return true;
+
+        const original = await runTransaction(
+          "readonly",
+          (store) => store.get("current_bg"),
+        );
+        if (!(original instanceof Blob)) return false;
+
+        const startupBlob = await createStartupBackgroundBlob(original);
+        try {
+          await runTransaction("readwrite", (store) => {
+            if (startupBlob instanceof Blob) {
+              store.put(
+                `optimized:${targetProfile}`,
+                STARTUP_BACKGROUND_PROFILE_KEY,
+              );
+              return store.put(startupBlob, STARTUP_BACKGROUND_KEY);
+            }
+            store.put(
+              `original:${targetProfile}`,
+              STARTUP_BACKGROUND_PROFILE_KEY,
+            );
+            return store.delete(STARTUP_BACKGROUND_KEY);
+          });
+        } catch (error) {
+          // Startup optimization is optional. If IndexedDB cannot persist the
+          // derived copy (for example because storage is full), fall back to
+          // the original wallpaper and avoid retrying this failed profile.
+          try {
+            await runTransaction("readwrite", (store) => {
+              store.put(
+                `original:${targetProfile}`,
+                STARTUP_BACKGROUND_PROFILE_KEY,
+              );
+              return store.delete(STARTUP_BACKGROUND_KEY);
+            });
+          } catch (cleanupError) {
+          }
+          return false;
+        }
         return true;
+      } catch (error) {
+        // The normal wallpaper path does not depend on this derived cache.
+        return false;
       }
-
-      const original = await runTransaction(
-        "readonly",
-        (store) => store.get("current_bg"),
-      );
-      if (!(original instanceof Blob)) return false;
-
-      const startupBlob = await createStartupBackgroundBlob(original);
-      await runTransaction("readwrite", (store) => {
-        store.put(targetProfile, STARTUP_BACKGROUND_PROFILE_KEY);
-        return store.put(startupBlob, STARTUP_BACKGROUND_KEY);
-      });
-      return true;
     });
   },
 
