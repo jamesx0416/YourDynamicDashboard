@@ -4,42 +4,9 @@ const STORE_NAME = "images";
 const DB_VERSION = 2;
 const RANDOM_BACKGROUND_QUEUE_KEY = "random_bg_queue";
 const RANDOM_BACKGROUND_CURRENT_KEY = "random_bg_current";
-const STARTUP_WALLPAPER_CACHE_NAME = "ydd-startup-wallpaper-v1";
-const STARTUP_WALLPAPER_PATH = "/__ydd/wallpaper-current";
 
 let databasePromise = null;
 let mutationQueue = Promise.resolve();
-
-function getStartupWallpaperUrl() {
-  if (
-    typeof location === "undefined" ||
-    location.protocol !== "chrome-extension:"
-  ) {
-    return null;
-  }
-  return new URL(STARTUP_WALLPAPER_PATH, location.origin).href;
-}
-
-function createStartupWallpaperResponse(blob) {
-  return new Response(blob, {
-    headers: {
-      "Content-Type": blob.type || "application/octet-stream",
-      "Cache-Control": "no-store",
-    },
-  });
-}
-
-async function syncStartupWallpaperCache(blob) {
-  const url = getStartupWallpaperUrl();
-  if (!url || typeof caches === "undefined") return;
-
-  const cache = await caches.open(STARTUP_WALLPAPER_CACHE_NAME);
-  if (blob instanceof Blob) {
-    await cache.put(url, createStartupWallpaperResponse(blob));
-  } else {
-    await cache.delete(url);
-  }
-}
 
 // Database lifecycle
 function openDB() {
@@ -173,18 +140,9 @@ function randomBackgroundIdentity(url) {
 // Background storage API
 export const secondStorage = {
   saveImage(blob) {
-    return enqueueMutation(async () => {
-      const result = await runTransaction(
-        "readwrite",
-        (store) => store.put(blob, "current_bg"),
-      );
-      try {
-        await syncStartupWallpaperCache(blob);
-      } catch (error) {
-        console.warn("Startup wallpaper cache update failed:", error);
-      }
-      return result;
-    });
+    return enqueueMutation(() =>
+      runTransaction("readwrite", (store) => store.put(blob, "current_bg"))
+    );
   },
 
   async getImage() {
@@ -193,18 +151,9 @@ export const secondStorage = {
   },
 
   deleteImage() {
-    return enqueueMutation(async () => {
-      const result = await runTransaction(
-        "readwrite",
-        (store) => store.delete("current_bg"),
-      );
-      try {
-        await syncStartupWallpaperCache(null);
-      } catch (error) {
-        console.warn("Startup wallpaper cache cleanup failed:", error);
-      }
-      return result;
-    });
+    return enqueueMutation(() =>
+      runTransaction("readwrite", (store) => store.delete("current_bg"))
+    );
   },
 
   saveRandomBackgroundQueue(queue) {
