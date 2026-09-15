@@ -4,6 +4,8 @@ const STORE_NAME = "images";
 const DB_VERSION = 2;
 const RANDOM_BACKGROUND_QUEUE_KEY = "random_bg_queue";
 const RANDOM_BACKGROUND_CURRENT_KEY = "random_bg_current";
+const LEGACY_STARTUP_BACKGROUND_KEY = "startup_bg";
+const LEGACY_STARTUP_BACKGROUND_PROFILE_KEY = "startup_bg_profile";
 
 let databasePromise = null;
 let mutationQueue = Promise.resolve();
@@ -141,7 +143,14 @@ function randomBackgroundIdentity(url) {
 export const secondStorage = {
   saveImage(blob) {
     return enqueueMutation(() =>
-      runTransaction("readwrite", (store) => store.put(blob, "current_bg"))
+      runTransaction("readwrite", (store) => {
+        // Remove derived startup-cache records left by the short-lived
+        // optimization experiment before saving the source-of-truth wallpaper.
+        // Keeping them can waste enough IndexedDB quota to make a new upload fail.
+        store.delete(LEGACY_STARTUP_BACKGROUND_KEY);
+        store.delete(LEGACY_STARTUP_BACKGROUND_PROFILE_KEY);
+        return store.put(blob, "current_bg");
+      })
     );
   },
 
@@ -152,7 +161,20 @@ export const secondStorage = {
 
   deleteImage() {
     return enqueueMutation(() =>
-      runTransaction("readwrite", (store) => store.delete("current_bg"))
+      runTransaction("readwrite", (store) => {
+        store.delete(LEGACY_STARTUP_BACKGROUND_KEY);
+        store.delete(LEGACY_STARTUP_BACKGROUND_PROFILE_KEY);
+        return store.delete("current_bg");
+      })
+    );
+  },
+
+  cleanupLegacyStartupImage() {
+    return enqueueMutation(() =>
+      runTransaction("readwrite", (store) => {
+        store.delete(LEGACY_STARTUP_BACKGROUND_KEY);
+        return store.delete(LEGACY_STARTUP_BACKGROUND_PROFILE_KEY);
+      })
     );
   },
 
