@@ -118,6 +118,110 @@ try {
         document.addEventListener("DOMContentLoaded", resolve, { once: true });
       });
 
+    var getExpectedStartupProfile = function () {
+      var screenWidth = Math.max(1, Number(window.screen?.width) || 1920);
+      var screenHeight = Math.max(1, Number(window.screen?.height) || 1080);
+      var dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
+      var rawWidth = Math.ceil(screenWidth * dpr);
+      var rawHeight = Math.ceil(screenHeight * dpr);
+      var scale = Math.min(1, 3840 / rawWidth, 2160 / rawHeight);
+      var width = Math.max(1, Math.round(rawWidth * scale));
+      var height = Math.max(1, Math.round(rawHeight * scale));
+      return "optimized:" + width + "x" + height;
+    };
+
+    var decodeAndShowBlob = function (backgroundBlob, fallbackToOriginal) {
+      if (!(backgroundBlob instanceof Blob)) {
+        if (fallbackToOriginal) {
+          loadOriginalWallpaper();
+        } else {
+          failStartup();
+        }
+        return;
+      }
+
+      if (startupObjectUrl) URL.revokeObjectURL(startupObjectUrl);
+      startupObjectUrl = URL.createObjectURL(backgroundBlob);
+      var image = new Image();
+      image.id = "ydd-startup-wallpaper";
+      image.alt = "";
+      image.setAttribute("aria-hidden", "true");
+      image.decoding = "async";
+      image.fetchPriority = "high";
+      image.src = startupObjectUrl;
+
+      var decoded = typeof image.decode === "function"
+        ? image.decode()
+        : new Promise(function (resolve, reject) {
+          image.onload = resolve;
+          image.onerror = reject;
+        });
+
+      Promise.all([decoded, bodyReady]).then(function () {
+        if (startupFinished || !document.body) return;
+        startupLayer = image;
+        document.body.prepend(startupLayer);
+        document.body.classList.add("has-custom-bg");
+
+        var completed = false;
+        var complete = function () {
+          if (completed) return;
+          completed = true;
+          finishStartup();
+        };
+        startupLayer.addEventListener(
+          "transitionend",
+          function (event) {
+            if (event.propertyName === "opacity") complete();
+          },
+          { once: true },
+        );
+        window.setTimeout(complete, 350);
+
+        // Commit the transparent starting state now, then begin the fade without
+        // deliberately waiting one or two display frames.
+        void startupLayer.offsetWidth;
+        document.body.classList.add("ydd-startup-wallpaper-visible");
+      }).catch(function () {
+        if (fallbackToOriginal) {
+          loadOriginalWallpaper();
+        } else {
+          failStartup();
+        }
+      });
+    };
+
+    var loadOriginalWallpaper = function () {
+      if (startupFinished) return;
+      var fallbackDbRequest = indexedDB.open("YDD_Storage", 2);
+      fallbackDbRequest.onsuccess = function (fallbackDbEvent) {
+        var fallbackDb = fallbackDbEvent.target.result;
+        if (!fallbackDb.objectStoreNames.contains("images")) {
+          fallbackDb.close();
+          failStartup();
+          return;
+        }
+        var fallbackTransaction = fallbackDb.transaction("images", "readonly");
+        var fallbackRequest = fallbackTransaction
+          .objectStore("images")
+          .get("current_bg");
+        fallbackTransaction.oncomplete = function () { fallbackDb.close(); };
+        fallbackTransaction.onerror = function () {
+          fallbackDb.close();
+          failStartup();
+        };
+        fallbackTransaction.onabort = function () {
+          fallbackDb.close();
+          failStartup();
+        };
+        fallbackRequest.onsuccess = function (fallbackEvent) {
+          decodeAndShowBlob(fallbackEvent.target.result, false);
+        };
+        fallbackRequest.onerror = failStartup;
+      };
+      fallbackDbRequest.onerror = failStartup;
+    };
+
     var request = indexedDB.open("YDD_Storage", 2);
     request.onsuccess = function (event) {
       var db = event.target.result;
@@ -129,75 +233,28 @@ try {
 
       var transaction = db.transaction("images", "readonly");
       var store = transaction.objectStore("images");
-      var getRequest = store.get("startup_bg");
+      var profileRequest = store.get("startup_bg_profile");
       transaction.oncomplete = function () { db.close(); };
       transaction.onerror = function () { db.close(); failStartup(); };
       transaction.onabort = function () { db.close(); failStartup(); };
 
-      getRequest.onsuccess = function (getEvent) {
-        var blob = getEvent.target.result;
-        var useBlob = function (backgroundBlob) {
-          if (!(backgroundBlob instanceof Blob)) {
-            failStartup();
-            return;
-          }
-
-          startupObjectUrl = URL.createObjectURL(backgroundBlob);
-          var image = new Image();
-          image.id = "ydd-startup-wallpaper";
-          image.alt = "";
-          image.setAttribute("aria-hidden", "true");
-          image.decoding = "async";
-          image.fetchPriority = "high";
-          image.src = startupObjectUrl;
-
-          var decoded = typeof image.decode === "function"
-            ? image.decode()
-            : new Promise(function (resolve, reject) {
-              image.onload = resolve;
-              image.onerror = reject;
-            });
-
-          Promise.all([decoded, bodyReady]).then(function () {
-            if (startupFinished || !document.body) return;
-            startupLayer = image;
-            document.body.prepend(startupLayer);
-            document.body.classList.add("has-custom-bg");
-
-            var completed = false;
-            var complete = function () {
-              if (completed) return;
-              completed = true;
-              finishStartup();
-            };
-            startupLayer.addEventListener(
-              "transitionend",
-              function (event) {
-                if (event.propertyName === "opacity") complete();
-              },
-              { once: true },
-            );
-            window.setTimeout(complete, 350);
-
-            // Commit the transparent starting state now, then begin the fade without
-            // deliberately waiting one or two display frames.
-            void startupLayer.offsetWidth;
-            document.body.classList.add("ydd-startup-wallpaper-visible");
-          }).catch(failStartup);
-        };
-
-        if (blob instanceof Blob) {
-          useBlob(blob);
+      profileRequest.onsuccess = function (profileEvent) {
+        if (profileEvent.target.result !== getExpectedStartupProfile()) {
+          var originalRequest = store.get("current_bg");
+          originalRequest.onsuccess = function (originalEvent) {
+            decodeAndShowBlob(originalEvent.target.result, false);
+          };
+          originalRequest.onerror = failStartup;
           return;
         }
 
-        var fallbackRequest = store.get("current_bg");
-        fallbackRequest.onsuccess = function (fallbackEvent) {
-          useBlob(fallbackEvent.target.result);
+        var startupRequest = store.get("startup_bg");
+        startupRequest.onsuccess = function (startupEvent) {
+          decodeAndShowBlob(startupEvent.target.result, true);
         };
-        fallbackRequest.onerror = failStartup;
+        startupRequest.onerror = loadOriginalWallpaper;
       };
-      getRequest.onerror = failStartup;
+      profileRequest.onerror = loadOriginalWallpaper;
     };
     request.onerror = failStartup;
 
