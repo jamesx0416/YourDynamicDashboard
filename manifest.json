@@ -16,6 +16,9 @@
     "https://search.prod.di.api.cnn.io/*",
     "https://feeds.npr.org/*"
   ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
   "chrome_url_overrides": {
     "newtab": "index.html"
   },
