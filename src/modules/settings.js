@@ -1174,10 +1174,6 @@ export class SettingsManager {
       this.els.glowToggle = document.getElementById("glow-effect-toggle");
     }
 
-    // Clean up records left by the reverted startup-image optimization. This is
-    // intentionally best-effort and must not delay or block Settings startup.
-    void secondStorage.cleanupLegacyStartupImage?.().catch(() => {});
-
     this.loadInitialState();
     this.setupEventListeners();
     this.renderThemes();
