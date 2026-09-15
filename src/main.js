@@ -309,9 +309,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const settingsManager = initialize("Settings", () => new SettingsManager());
 
   // Deferred module startup
-  const backgroundStartup = Promise.resolve(
-    settingsManager?.whenBackgroundReady?.(),
-  ).catch((error) => {
+  const backgroundStartup = Promise.all([
+    Promise.resolve(settingsManager?.whenBackgroundReady?.()),
+    Promise.resolve(window.__yddUploadedWallpaperReady),
+  ]).then(() => undefined).catch((error) => {
     console.error("[YDD] Background startup failed:", error);
   });
 

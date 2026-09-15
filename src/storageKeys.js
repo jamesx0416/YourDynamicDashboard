@@ -35,7 +35,6 @@ const EXTRA_STORAGE_KEYS = [
   "keyMap",
   "lastSettingsView",
   "locationUpdate",
-  "lowResBg",
   "randomBgMode",
   "randomBgCurrentPreview",
   "randomBgLastChangedAt",
@@ -72,7 +71,6 @@ const RAW_STORAGE_KEYS = new Set([
   "activeToolTab",
   "has_idb_bg",
   "hideGpsConsent",
-  "lowResBg",
 ]);
 
 const INTERNAL_STORAGE_KEYS = new Set(["ydd_daily_greeting"]);

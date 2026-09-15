@@ -1,9 +1,14 @@
-// Keep the browser's own new-tab canvas visible until the full wallpaper is ready.
+// Keep the browser's own new tab canvas visible until the full wallpaper is ready.
 try {
   var root = document.documentElement;
   var hasStoredBackground = localStorage.getItem("has_idb_bg") === "true";
 
   if (hasStoredBackground) {
+    var resolveWallpaperStartup = null;
+    window.__yddUploadedWallpaperReady = new Promise(function (resolve) {
+      resolveWallpaperStartup = resolve;
+    });
+
     root.classList.add("ydd-custom-bg-pending", "ydd-browser-default-startup");
     root.style.removeProperty("background-color");
     root.style.removeProperty("background-image");
@@ -22,9 +27,9 @@ try {
       "background: transparent !important;" +
       "}" +
       "#ydd-startup-wallpaper {" +
-      "position: fixed; inset: 0; z-index: -2; pointer-events: none;" +
-      "background-size: cover; background-position: center; background-repeat: no-repeat;" +
-      "opacity: 0; transition: opacity 0.2s ease;" +
+      "position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -2;" +
+      "display: block; pointer-events: none; object-fit: cover; object-position: center;" +
+      "opacity: 0; transition: opacity 0.2s ease !important;" +
       "}" +
       "body.ydd-startup-wallpaper-visible #ydd-startup-wallpaper { opacity: 1; }" +
       "html.ydd-browser-default-startup body.has-custom-bg::before {" +
@@ -36,46 +41,69 @@ try {
     document.head.appendChild(startupStyle);
 
     var startupObjectUrl = null;
+    var startupLayer = null;
     var startupFinished = false;
+
+    var settleStartup = function () {
+      if (!resolveWallpaperStartup) return;
+      resolveWallpaperStartup();
+      resolveWallpaperStartup = null;
+    };
+
+    var removeStartupLayer = function () {
+      document.body?.classList.remove("ydd-startup-wallpaper-visible");
+      root.classList.remove("ydd-custom-bg-pending");
+      startupLayer?.remove();
+      startupLayer = null;
+      startupStyle.remove();
+      settleStartup();
+    };
 
     var finishStartup = function () {
       if (startupFinished) return;
       startupFinished = true;
       var body = document.body;
-      var layer = document.getElementById("ydd-startup-wallpaper");
-
-      if (body && startupObjectUrl) {
-        body.style.setProperty(
-          "background-image",
-          'url("' + startupObjectUrl.replace(/"/g, "%22") + '")',
-          "important",
-        );
-        body.style.setProperty("background-size", "cover", "important");
-        body.style.setProperty("background-position", "center", "important");
-        body.style.setProperty("background-repeat", "no-repeat", "important");
-        body.classList.add("has-custom-bg");
-        body.classList.remove("ydd-startup-wallpaper-visible");
+      if (!body || !startupObjectUrl) {
+        removeStartupLayer();
+        return;
       }
 
-      root.classList.remove("ydd-browser-default-startup", "ydd-custom-bg-pending");
+      body.style.setProperty(
+        "background-image",
+        'url("' + startupObjectUrl.replace(/"/g, "%22") + '")',
+        "important",
+      );
+      body.style.setProperty("background-size", "cover", "important");
+      body.style.setProperty("background-position", "center", "important");
+      body.style.setProperty("background-repeat", "no-repeat", "important");
+      body.classList.add("has-custom-bg");
+
+      root.classList.remove("ydd-browser-default-startup");
       root.style.removeProperty("background-color");
       root.style.removeProperty("background-image");
       root.style.removeProperty("background-size");
       root.style.removeProperty("background-position");
       root.style.removeProperty("background-repeat");
-      document.getElementById("ydd-startup-background")?.remove();
-      document.getElementById("idb-preloader")?.remove();
-      document.getElementById("ydd-idb-background")?.remove();
-      layer?.remove();
-      startupStyle.remove();
+
+      // Keep the decoded layer visible for one painted frame after body takes over.
+      window.requestAnimationFrame(function () {
+        window.requestAnimationFrame(removeStartupLayer);
+      });
     };
 
     var failStartup = function () {
       if (startupFinished) return;
       startupFinished = true;
-      root.classList.remove("ydd-browser-default-startup");
+      root.classList.remove("ydd-browser-default-startup", "ydd-custom-bg-pending");
+      document.body?.classList.remove("ydd-startup-wallpaper-visible");
+      startupLayer?.remove();
+      startupLayer = null;
       startupStyle.remove();
-      if (startupObjectUrl) URL.revokeObjectURL(startupObjectUrl);
+      if (startupObjectUrl) {
+        URL.revokeObjectURL(startupObjectUrl);
+        startupObjectUrl = null;
+      }
+      settleStartup();
     };
 
     var bodyReady = document.body
@@ -96,8 +124,8 @@ try {
       var transaction = db.transaction("images", "readonly");
       var getRequest = transaction.objectStore("images").get("current_bg");
       transaction.oncomplete = function () { db.close(); };
-      transaction.onerror = function () { db.close(); };
-      transaction.onabort = function () { db.close(); };
+      transaction.onerror = function () { db.close(); failStartup(); };
+      transaction.onabort = function () { db.close(); failStartup(); };
 
       getRequest.onsuccess = function (getEvent) {
         var blob = getEvent.target.result;
@@ -108,8 +136,12 @@ try {
 
         startupObjectUrl = URL.createObjectURL(blob);
         var image = new Image();
+        image.id = "ydd-startup-wallpaper";
+        image.alt = "";
+        image.setAttribute("aria-hidden", "true");
         image.decoding = "async";
         image.src = startupObjectUrl;
+
         var decoded = typeof image.decode === "function"
           ? image.decode()
           : new Promise(function (resolve, reject) {
@@ -119,12 +151,8 @@ try {
 
         Promise.all([decoded, bodyReady]).then(function () {
           if (startupFinished || !document.body) return;
-          var layer = document.createElement("div");
-          layer.id = "ydd-startup-wallpaper";
-          layer.setAttribute("aria-hidden", "true");
-          layer.style.backgroundImage =
-            'url("' + startupObjectUrl.replace(/"/g, "%22") + '")';
-          document.body.prepend(layer);
+          startupLayer = image;
+          document.body.prepend(startupLayer);
           document.body.classList.add("has-custom-bg");
 
           var completed = false;
@@ -133,7 +161,13 @@ try {
             completed = true;
             finishStartup();
           };
-          layer.addEventListener("transitionend", complete, { once: true });
+          startupLayer.addEventListener(
+            "transitionend",
+            function (event) {
+              if (event.propertyName === "opacity") complete();
+            },
+            { once: true },
+          );
           window.setTimeout(complete, 350);
 
           window.requestAnimationFrame(function () {
@@ -154,6 +188,9 @@ try {
       },
       { once: true },
     );
+  } else {
+    window.__yddUploadedWallpaperReady = Promise.resolve();
   }
 } catch (error) {
+  window.__yddUploadedWallpaperReady = Promise.resolve();
 }

@@ -35,8 +35,6 @@ import {
 // Background configuration
 const RANDOM_BG_QUEUE_TARGET = 2;
 const RANDOM_BG_PREVIEW_WIDTH = 480;
-const STARTUP_BG_PREVIEW_WIDTH = 64;
-const STARTUP_BG_PREVIEW_QUALITY = 0.48;
 const RANDOM_BG_FETCH_TIMEOUT_MS = 12000;
 const RANDOM_BG_MIN_WIDTH = 800;
 const RANDOM_BG_MIN_HEIGHT = 600;
@@ -1459,10 +1457,6 @@ export class SettingsManager {
           this.resetGrayscaleForCurrentContext();
           if (this.els.removeBg) this.els.removeBg.classList.remove("hidden");
           this.updateAutoThemeGlowState();
-
-          if (!localStorage.getItem("lowResBg")) {
-            void this._storeStartupBackgroundPreview(blob);
-          }
         }
       })
       .catch((err) => console.error("IndexedDB load error:", err));
@@ -3216,7 +3210,6 @@ export class SettingsManager {
   _removePreloadedBackgroundStyles() {
     document.getElementById("ydd-remote-background")?.remove();
     document.getElementById("ydd-idb-background")?.remove();
-    document.getElementById("ydd-startup-background")?.remove();
     document.getElementById("idb-preloader")?.remove();
   }
 
@@ -3655,21 +3648,6 @@ export class SettingsManager {
     }
   }
 
-  async _storeStartupBackgroundPreview(blob) {
-    const preview = await this._createBackgroundPreview(
-      blob,
-      STARTUP_BG_PREVIEW_WIDTH,
-      STARTUP_BG_PREVIEW_QUALITY,
-    );
-    try {
-      if (preview) localStorage.setItem("lowResBg", preview);
-      else localStorage.removeItem("lowResBg");
-    } catch (error) {
-      console.warn("Startup background preview could not be saved:", error);
-    }
-    return preview;
-  }
-
   async _useRandomBackgroundEntry(
     entry,
     operationId,
@@ -4025,7 +4003,6 @@ export class SettingsManager {
       this._applyBackgroundUrl(objectUrl);
 
       localStorage.setItem("has_idb_bg", "true");
-      await this._storeStartupBackgroundPreview(file);
       state.set("randomBgMode", null);
       state.set("randomBgTime", null);
       state.set("savedBgUrl", null);
@@ -4060,7 +4037,6 @@ export class SettingsManager {
       state.set("randomBgMode", null);
       state.set("randomBgTime", null);
       localStorage.removeItem("has_idb_bg");
-      localStorage.removeItem("lowResBg");
       document.documentElement.classList.remove("ydd-custom-bg-pending");
       document.body.classList.remove("has-custom-bg");
       document.body.style.removeProperty("background-image");
@@ -4628,7 +4604,6 @@ export class SettingsManager {
       }
       await this._persistRandomBackgroundQueue([]);
       localStorage.removeItem("has_idb_bg");
-      localStorage.removeItem("lowResBg");
       this.disableAutoTheme();
       this._syncBackgroundControls();
       void this._fillRandomBackgroundQueue(operationId, []);

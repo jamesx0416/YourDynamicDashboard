@@ -1,5 +1,8 @@
 // Theme preload bootstrap
 try {
+  var hasIdbBg = localStorage.getItem("has_idb_bg") === "true";
+  var preserveBrowserDefault = hasIdbBg &&
+    document.documentElement.classList.contains("ydd-browser-default-startup");
   var preloadObjectUrl = null;
   var preloadBackgroundEnabled = true;
   var releasePreloadObjectUrl = function () {
@@ -59,7 +62,9 @@ try {
       ? (THEME_DARK_COLORS[thId] || THEME_COLORS[thId] || "#030303")
       : (THEME_LIGHT_COLORS[thId] || THEME_COLORS[thId] || "#c3c3c3");
     document.documentElement.style.setProperty("--bg-primary", preloadColor);
-    document.documentElement.style.backgroundColor = preloadColor;
+    if (!preserveBrowserDefault) {
+      document.documentElement.style.backgroundColor = preloadColor;
+    }
   } else if (gm === "true") {
     document.documentElement.classList.add("gradient-mode-active");
     var gradientId = (localStorage.getItem("gradientThemeId") || "gradient")
@@ -68,7 +73,9 @@ try {
       "data-theme-id",
       "gradient-" + gradientId,
     );
-    document.documentElement.style.backgroundColor = "#302b63";
+    if (!preserveBrowserDefault) {
+      document.documentElement.style.backgroundColor = "#302b63";
+    }
   } else {
     document.documentElement.setAttribute("data-theme", "light");
     document.documentElement.setAttribute("data-theme-id", thId);
@@ -77,33 +84,22 @@ try {
       var customBgp = readStoredColor(rawBgp);
       if (customBgp) {
         document.documentElement.style.setProperty("--bg-primary", customBgp);
-        document.documentElement.style.backgroundColor = customBgp;
+        if (!preserveBrowserDefault) {
+          document.documentElement.style.backgroundColor = customBgp;
+        }
       }
     } else {
       var color = THEME_LIGHT_COLORS[thId] || THEME_COLORS[thId] || "#c3c3c3";
       document.documentElement.style.setProperty("--bg-primary", color);
-      document.documentElement.style.backgroundColor = color;
+      if (!preserveBrowserDefault) {
+        document.documentElement.style.backgroundColor = color;
+      }
     }
   }
 
   // Background state
   var bgMode = localStorage.getItem("randomBgMode");
   var bg = localStorage.getItem("backgroundImage");
-  var hasIdbBg = localStorage.getItem("has_idb_bg") === "true";
-  var lowResBg = localStorage.getItem("lowResBg");
-  var lowResPreview = typeof lowResBg === "string" &&
-      lowResBg.startsWith("data:image/")
-    ? lowResBg
-    : null;
-  if (hasIdbBg && lowResPreview) {
-    document.documentElement.style.backgroundImage =
-      'linear-gradient(rgba(0,0,0,.25), rgba(0,0,0,.25)), url("' +
-      lowResPreview.replace(/"/g, '%22') +
-      '")';
-    document.documentElement.style.backgroundSize = "cover";
-    document.documentElement.style.backgroundPosition = "center";
-    document.documentElement.style.backgroundRepeat = "no-repeat";
-  }
   var savedBg = localStorage.getItem("savedBgUrl");
   var randomBgSchedule = localStorage.getItem("randomBgSchedule");
   var randomBgCurrentPreview = localStorage.getItem("randomBgCurrentPreview");
@@ -308,57 +304,33 @@ try {
     }
   }
 
-  if (bgMode === '"freeze"') {
-    if (
-      bgTime === "null" || bgTime === '"-1"' ||
-      Date.now() - parseInt(bgTime) <= 259200000
-    ) {
-      imgUrl = readStoredRandomUrl(savedBg) || readStoredRandomUrl(bg);
-    }
-  } else if (bgMode === '"random"') {
-    if (parsedRandomBgSchedule === "refresh") {
-      imgUrl = randomBgNextPreviewUrl ||
-        randomBgNextUrl ||
-        readStoredRandomUrl(savedBg) ||
-        readStoredRandomUrl(bg);
-    } else {
-      var queuedTimedPreview = randomBgTimedChangeDue
-        ? randomBgNextPreviewUrl || randomBgNextUrl
-        : null;
-      imgUrl = queuedTimedPreview ||
-        randomBgCurrentPreviewUrl ||
-        readStoredRandomUrl(savedBg) ||
-        readStoredRandomUrl(bg) ||
-        randomBgNextPreviewUrl ||
-        randomBgNextUrl;
-    }
-  } else if (bg && bg !== '"null"' && bgMode !== '"random"') {
-    imgUrl = readStoredUrl(bg);
-  }
-
-  if (hasIdbBg) {
-    document.documentElement.classList.add("ydd-custom-bg-pending");
-    document.addEventListener(
-      "DOMContentLoaded",
-      function () {
-        document.body.classList.add("has-custom-bg");
-      },
-      { once: true },
-    );
-
-    if (lowResPreview && !imgUrl) {
-      var startupStyle = document.createElement("style");
-      startupStyle.id = "ydd-startup-background";
-      var previewCssUrl = JSON.stringify(lowResPreview);
-      startupStyle.textContent =
-        "html.ydd-custom-bg-pending body:not(.has-custom-bg) {" +
-        "background-image: linear-gradient(rgba(0,0,0,.25), rgba(0,0,0,.25)), url(" +
-        previewCssUrl +
-        ") !important; background-size: cover !important; background-position: center !important; }" +
-        "html.ydd-custom-bg-pending body.has-custom-bg {" +
-        "background-image: url(" + previewCssUrl +
-        ") !important; background-size: cover !important; background-position: center !important; }";
-      document.head.appendChild(startupStyle);
+  if (!hasIdbBg) {
+    if (bgMode === '"freeze"') {
+      if (
+        bgTime === "null" || bgTime === '"-1"' ||
+        Date.now() - parseInt(bgTime) <= 259200000
+      ) {
+        imgUrl = readStoredRandomUrl(savedBg) || readStoredRandomUrl(bg);
+      }
+    } else if (bgMode === '"random"') {
+      if (parsedRandomBgSchedule === "refresh") {
+        imgUrl = randomBgNextPreviewUrl ||
+          randomBgNextUrl ||
+          readStoredRandomUrl(savedBg) ||
+          readStoredRandomUrl(bg);
+      } else {
+        var queuedTimedPreview = randomBgTimedChangeDue
+          ? randomBgNextPreviewUrl || randomBgNextUrl
+          : null;
+        imgUrl = queuedTimedPreview ||
+          randomBgCurrentPreviewUrl ||
+          readStoredRandomUrl(savedBg) ||
+          readStoredRandomUrl(bg) ||
+          randomBgNextPreviewUrl ||
+          randomBgNextUrl;
+      }
+    } else if (bg && bg !== '"null"' && bgMode !== '"random"') {
+      imgUrl = readStoredUrl(bg);
     }
   }
 
@@ -380,64 +352,55 @@ try {
   }
   var fallback = THEME_COLORS[thId] || "#0a0a0a";
   var randomModeWithoutImage = bgMode === '"random"' && !imgUrl;
-  if (
-    (hasIdbBg && bgMode !== '"random"') || bgMode === '"freeze"' ||
-    randomModeWithoutImage
-  ) {
+  if (!hasIdbBg && (bgMode === '"freeze"' || randomModeWithoutImage)) {
     var preloader = document.createElement("style");
     preloader.id = "idb-preloader";
     var pColor = fallback || "#0a0a0a";
-    preloader.textContent = hasIdbBg && lowResPreview
-      ? "body { background-color: transparent !important; transition: none !important; }"
-      : "body { background-color: " + pColor +
-        " !important; background-image: none !important; transition: none !important; }";
+    preloader.textContent = "body { background-color: " + pColor +
+      " !important; background-image: none !important; transition: none !important; }";
     document.head.appendChild(preloader);
   }
 
-  // IndexedDB background preload
-  var request = indexedDB.open("YDD_Storage", 2);
-  request.onupgradeneeded = function (event) {
-    var db = event.target.result;
-    if (!db.objectStoreNames.contains("images")) {
-      db.createObjectStore("images");
-    }
-  };
-  request.onsuccess = function (event) {
-    var db = event.target.result;
-    if (db.objectStoreNames.contains("images")) {
+  // IndexedDB preload here is only for the separate random wallpaper queue.
+  var randomUsesCurrentRecord = !hasIdbBg &&
+    bgMode === '"random"' &&
+    parsedRandomBgSchedule !== "refresh" &&
+    !(randomBgTimedChangeDue && (randomBgNextPreviewUrl || randomBgNextUrl));
+
+  if (randomUsesCurrentRecord) {
+    var request = indexedDB.open("YDD_Storage", 2);
+    request.onupgradeneeded = function (event) {
+      var db = event.target.result;
+      if (!db.objectStoreNames.contains("images")) {
+        db.createObjectStore("images");
+      }
+    };
+    request.onsuccess = function (event) {
+      var db = event.target.result;
+      if (!db.objectStoreNames.contains("images")) {
+        db.close();
+        document.documentElement.classList.remove("ydd-custom-bg-pending");
+        document.getElementById("idb-preloader")?.remove();
+        return;
+      }
+
       var transaction = db.transaction("images", "readonly");
-      var store = transaction.objectStore("images");
-      var randomUsesCurrentRecord = bgMode === '"random"' &&
-        parsedRandomBgSchedule !== "refresh" &&
-        !(randomBgTimedChangeDue &&
-          (randomBgNextPreviewUrl || randomBgNextUrl));
-      var getRequest = store.get(
-        randomUsesCurrentRecord ? "random_bg_current" : "current_bg",
-      );
-      transaction.oncomplete = function () {
-        db.close();
-      };
-      transaction.onerror = function () {
-        db.close();
-      };
-      transaction.onabort = function () {
-        db.close();
-      };
+      var getRequest = transaction.objectStore("images").get("random_bg_current");
+      transaction.oncomplete = function () { db.close(); };
+      transaction.onerror = function () { db.close(); };
+      transaction.onabort = function () { db.close(); };
 
       getRequest.onsuccess = function (e) {
         var storedBackground = e.target.result;
         var storedRandomBlob =
-          randomUsesCurrentRecord && storedBackground?.blob instanceof Blob &&
+          storedBackground?.blob instanceof Blob &&
             isSafeStoredRandomEntryUrl(storedBackground?.url)
             ? storedBackground.blob
             : null;
-        var usableBackground = storedRandomBlob || storedBackground;
-        if (
-          usableBackground && preloadBackgroundEnabled &&
-          (bgMode !== '"random"' || randomUsesCurrentRecord)
-        ) {
+
+        if (storedRandomBlob && preloadBackgroundEnabled) {
           releasePreloadObjectUrl();
-          var objectUrl = URL.createObjectURL(usableBackground);
+          var objectUrl = URL.createObjectURL(storedRandomBlob);
           preloadObjectUrl = objectUrl;
           window.__yddPreloadBackgroundUrl = objectUrl;
 
@@ -451,18 +414,13 @@ try {
             style.textContent = "body { background-image: url(" + objectUrl +
               ") !important; background-size: cover !important; background-position: center !important; }";
             document.head.appendChild(style);
-            document.getElementById("ydd-startup-background")?.remove();
             document.getElementById("idb-preloader")?.remove();
-            document.documentElement.style.removeProperty("background-image");
-            document.documentElement.style.removeProperty("background-size");
-            document.documentElement.style.removeProperty("background-position");
-            document.documentElement.style.removeProperty("background-repeat");
             if (document.body) {
               document.body.classList.add("has-custom-bg");
             } else {
               document.addEventListener("DOMContentLoaded", function () {
                 document.body.classList.add("has-custom-bg");
-              });
+              }, { once: true });
             }
           };
           var decodePromise = typeof fullBackground.decode === "function"
@@ -471,39 +429,26 @@ try {
               fullBackground.onload = resolve;
               fullBackground.onerror = reject;
             });
-          decodePromise.then(revealFullBackground).catch(function () {
-            if (!lowResPreview) revealFullBackground();
-          });
+          decodePromise.then(revealFullBackground).catch(revealFullBackground);
         } else if (!imgUrl) {
           document.documentElement.classList.remove("ydd-custom-bg-pending");
-          document.getElementById("ydd-startup-background")?.remove();
-          localStorage.removeItem("has_idb_bg");
-          localStorage.removeItem("lowResBg");
-          document.body?.classList.remove("has-custom-bg");
         }
-        var p = document.getElementById("idb-preloader");
-        if (p) p.remove();
+        document.getElementById("idb-preloader")?.remove();
       };
       getRequest.onerror = function () {
         if (!imgUrl) {
           document.documentElement.classList.remove("ydd-custom-bg-pending");
         }
-        var p = document.getElementById("idb-preloader");
-        if (p) p.remove();
+        document.getElementById("idb-preloader")?.remove();
       };
-    } else {
-      db.close();
-      var p = document.getElementById("idb-preloader");
-      if (p) p.remove();
-    }
-  };
-  request.onerror = function () {
-    if (!imgUrl) {
-      document.documentElement.classList.remove("ydd-custom-bg-pending");
-    }
-    var p = document.getElementById("idb-preloader");
-    if (p) p.remove();
-  };
+    };
+    request.onerror = function () {
+      if (!imgUrl) {
+        document.documentElement.classList.remove("ydd-custom-bg-pending");
+      }
+      document.getElementById("idb-preloader")?.remove();
+    };
+  }
 } catch (e) {
   var p = document.getElementById("idb-preloader");
   if (p) p.remove();
