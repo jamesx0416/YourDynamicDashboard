@@ -1473,6 +1473,22 @@ export class SettingsManager {
           if (blob) markStoredBackgroundReady();
         })
         .catch((err) => console.error("IndexedDB load error:", err));
+
+    if (hasStoredBackground) {
+      void Promise.resolve(window.__yddUploadedWallpaperReady).then(() => {
+        const buildStartupImage = () => {
+          void secondStorage.ensureStartupImage().catch((error) =>
+            console.warn("Startup wallpaper optimization failed:", error)
+          );
+        };
+        if (typeof window.requestIdleCallback === "function") {
+          window.requestIdleCallback(buildStartupImage, { timeout: 3000 });
+        } else {
+          window.setTimeout(buildStartupImage, 250);
+        }
+      });
+    }
+
     this._backgroundReady = Promise.allSettled([
       backgroundReady,
       storedBackgroundReady,

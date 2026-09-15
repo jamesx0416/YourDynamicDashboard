@@ -128,59 +128,74 @@ try {
       }
 
       var transaction = db.transaction("images", "readonly");
-      var getRequest = transaction.objectStore("images").get("current_bg");
+      var store = transaction.objectStore("images");
+      var getRequest = store.get("startup_bg");
       transaction.oncomplete = function () { db.close(); };
       transaction.onerror = function () { db.close(); failStartup(); };
       transaction.onabort = function () { db.close(); failStartup(); };
 
       getRequest.onsuccess = function (getEvent) {
         var blob = getEvent.target.result;
-        if (!(blob instanceof Blob)) {
-          failStartup();
+        var useBlob = function (backgroundBlob) {
+          if (!(backgroundBlob instanceof Blob)) {
+            failStartup();
+            return;
+          }
+
+          startupObjectUrl = URL.createObjectURL(backgroundBlob);
+          var image = new Image();
+          image.id = "ydd-startup-wallpaper";
+          image.alt = "";
+          image.setAttribute("aria-hidden", "true");
+          image.decoding = "async";
+          image.fetchPriority = "high";
+          image.src = startupObjectUrl;
+
+          var decoded = typeof image.decode === "function"
+            ? image.decode()
+            : new Promise(function (resolve, reject) {
+              image.onload = resolve;
+              image.onerror = reject;
+            });
+
+          Promise.all([decoded, bodyReady]).then(function () {
+            if (startupFinished || !document.body) return;
+            startupLayer = image;
+            document.body.prepend(startupLayer);
+            document.body.classList.add("has-custom-bg");
+
+            var completed = false;
+            var complete = function () {
+              if (completed) return;
+              completed = true;
+              finishStartup();
+            };
+            startupLayer.addEventListener(
+              "transitionend",
+              function (event) {
+                if (event.propertyName === "opacity") complete();
+              },
+              { once: true },
+            );
+            window.setTimeout(complete, 350);
+
+            // Commit the transparent starting state now, then begin the fade without
+            // deliberately waiting one or two display frames.
+            void startupLayer.offsetWidth;
+            document.body.classList.add("ydd-startup-wallpaper-visible");
+          }).catch(failStartup);
+        };
+
+        if (blob instanceof Blob) {
+          useBlob(blob);
           return;
         }
 
-        startupObjectUrl = URL.createObjectURL(blob);
-        var image = new Image();
-        image.id = "ydd-startup-wallpaper";
-        image.alt = "";
-        image.setAttribute("aria-hidden", "true");
-        image.decoding = "async";
-        image.src = startupObjectUrl;
-
-        var decoded = typeof image.decode === "function"
-          ? image.decode()
-          : new Promise(function (resolve, reject) {
-            image.onload = resolve;
-            image.onerror = reject;
-          });
-
-        Promise.all([decoded, bodyReady]).then(function () {
-          if (startupFinished || !document.body) return;
-          startupLayer = image;
-          document.body.prepend(startupLayer);
-          document.body.classList.add("has-custom-bg");
-
-          var completed = false;
-          var complete = function () {
-            if (completed) return;
-            completed = true;
-            finishStartup();
-          };
-          startupLayer.addEventListener(
-            "transitionend",
-            function (event) {
-              if (event.propertyName === "opacity") complete();
-            },
-            { once: true },
-          );
-          window.setTimeout(complete, 350);
-
-          // Commit the transparent starting state now, then begin the fade without
-          // deliberately waiting one or two display frames.
-          void startupLayer.offsetWidth;
-          document.body.classList.add("ydd-startup-wallpaper-visible");
-        }).catch(failStartup);
+        var fallbackRequest = store.get("current_bg");
+        fallbackRequest.onsuccess = function (fallbackEvent) {
+          useBlob(fallbackEvent.target.result);
+        };
+        fallbackRequest.onerror = failStartup;
       };
       getRequest.onerror = failStartup;
     };

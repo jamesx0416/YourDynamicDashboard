@@ -4,9 +4,105 @@ const STORE_NAME = "images";
 const DB_VERSION = 2;
 const RANDOM_BACKGROUND_QUEUE_KEY = "random_bg_queue";
 const RANDOM_BACKGROUND_CURRENT_KEY = "random_bg_current";
+const STARTUP_BACKGROUND_KEY = "startup_bg";
+const STARTUP_BACKGROUND_PROFILE_KEY = "startup_bg_profile";
+const STARTUP_MAX_WIDTH = 3840;
+const STARTUP_MAX_HEIGHT = 2160;
 
 let databasePromise = null;
 let mutationQueue = Promise.resolve();
+
+function getStartupBackgroundTarget() {
+  const screenWidth = Math.max(1, Number(globalThis.screen?.width) || 1920);
+  const screenHeight = Math.max(1, Number(globalThis.screen?.height) || 1080);
+  const dpr = Math.max(1, Number(globalThis.devicePixelRatio) || 1);
+  const rawWidth = Math.ceil(screenWidth * dpr);
+  const rawHeight = Math.ceil(screenHeight * dpr);
+  const scale = Math.min(
+    1,
+    STARTUP_MAX_WIDTH / rawWidth,
+    STARTUP_MAX_HEIGHT / rawHeight,
+  );
+  const width = Math.max(1, Math.round(rawWidth * scale));
+  const height = Math.max(1, Math.round(rawHeight * scale));
+  return {
+    width,
+    height,
+    profile: `${width}x${height}`,
+  };
+}
+
+async function createStartupBackgroundBlob(blob) {
+  if (!(blob instanceof Blob) || blob.type === "image/gif") return blob;
+  if (typeof createImageBitmap !== "function") return blob;
+
+  let bitmap = null;
+  try {
+    bitmap = await createImageBitmap(blob);
+    const target = getStartupBackgroundTarget();
+    const targetWidth = target.width;
+    const targetHeight = target.height;
+
+    const sourceRatio = bitmap.width / bitmap.height;
+    const targetRatio = targetWidth / targetHeight;
+    let sourceX = 0;
+    let sourceY = 0;
+    let sourceWidth = bitmap.width;
+    let sourceHeight = bitmap.height;
+
+    if (sourceRatio > targetRatio) {
+      sourceWidth = Math.round(bitmap.height * targetRatio);
+      sourceX = Math.round((bitmap.width - sourceWidth) / 2);
+    } else if (sourceRatio < targetRatio) {
+      sourceHeight = Math.round(bitmap.width / targetRatio);
+      sourceY = Math.round((bitmap.height - sourceHeight) / 2);
+    }
+
+    if (sourceWidth <= targetWidth && sourceHeight <= targetHeight) return blob;
+
+    const canvas = typeof OffscreenCanvas === "function"
+      ? new OffscreenCanvas(targetWidth, targetHeight)
+      : Object.assign(document.createElement("canvas"), {
+        width: targetWidth,
+        height: targetHeight,
+      });
+    const context = canvas.getContext("2d", { alpha: true });
+    if (!context) return blob;
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(
+      bitmap,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      0,
+      0,
+      targetWidth,
+      targetHeight,
+    );
+
+    const outputType = "image/webp";
+    if (typeof canvas.convertToBlob === "function") {
+      return await canvas.convertToBlob({
+        type: outputType,
+        quality: 0.95,
+      });
+    }
+
+    return await new Promise((resolve) => {
+      canvas.toBlob(
+        (result) => resolve(result instanceof Blob ? result : blob),
+        outputType,
+        0.95,
+      );
+    });
+  } catch (error) {
+    return blob;
+  } finally {
+    bitmap?.close?.();
+  }
+}
 
 // Database lifecycle
 function openDB() {
@@ -140,9 +236,15 @@ function randomBackgroundIdentity(url) {
 // Background storage API
 export const secondStorage = {
   saveImage(blob) {
-    return enqueueMutation(() =>
-      runTransaction("readwrite", (store) => store.put(blob, "current_bg"))
-    );
+    return enqueueMutation(async () => {
+      const startupBlob = await createStartupBackgroundBlob(blob);
+      const startupProfile = getStartupBackgroundTarget().profile;
+      return runTransaction("readwrite", (store) => {
+        store.put(startupBlob, STARTUP_BACKGROUND_KEY);
+        store.put(startupProfile, STARTUP_BACKGROUND_PROFILE_KEY);
+        return store.put(blob, "current_bg");
+      });
+    });
   },
 
   async getImage() {
@@ -150,9 +252,43 @@ export const secondStorage = {
     return runTransaction("readonly", (store) => store.get("current_bg"));
   },
 
+  async ensureStartupImage() {
+    return enqueueMutation(async () => {
+      const targetProfile = getStartupBackgroundTarget().profile;
+      const existing = await runTransaction(
+        "readonly",
+        (store) => store.get(STARTUP_BACKGROUND_KEY),
+      );
+      const existingProfile = await runTransaction(
+        "readonly",
+        (store) => store.get(STARTUP_BACKGROUND_PROFILE_KEY),
+      );
+      if (existing instanceof Blob && existingProfile === targetProfile) {
+        return true;
+      }
+
+      const original = await runTransaction(
+        "readonly",
+        (store) => store.get("current_bg"),
+      );
+      if (!(original instanceof Blob)) return false;
+
+      const startupBlob = await createStartupBackgroundBlob(original);
+      await runTransaction("readwrite", (store) => {
+        store.put(targetProfile, STARTUP_BACKGROUND_PROFILE_KEY);
+        return store.put(startupBlob, STARTUP_BACKGROUND_KEY);
+      });
+      return true;
+    });
+  },
+
   deleteImage() {
     return enqueueMutation(() =>
-      runTransaction("readwrite", (store) => store.delete("current_bg"))
+      runTransaction("readwrite", (store) => {
+        store.delete(STARTUP_BACKGROUND_KEY);
+        store.delete(STARTUP_BACKGROUND_PROFILE_KEY);
+        return store.delete("current_bg");
+      })
     );
   },
 
