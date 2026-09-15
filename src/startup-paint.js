@@ -10,6 +10,7 @@ try {
     });
 
     root.classList.add("ydd-custom-bg-pending", "ydd-browser-default-startup");
+    root.style.setProperty("color-scheme", "light dark");
     root.style.removeProperty("background-color");
     root.style.removeProperty("background-image");
 
@@ -18,7 +19,8 @@ try {
     startupStyle.textContent =
       "html.ydd-browser-default-startup," +
       "html.ydd-browser-default-startup body {" +
-      "background-color: transparent !important;" +
+      "color-scheme: light dark;" +
+      "background-color: Canvas !important;" +
       "background-image: none !important;" +
       "}" +
       "html.ydd-browser-default-startup ::-webkit-scrollbar-track," +
@@ -79,6 +81,7 @@ try {
       body.classList.add("has-custom-bg");
 
       root.classList.remove("ydd-browser-default-startup");
+      root.style.removeProperty("color-scheme");
       root.style.removeProperty("background-color");
       root.style.removeProperty("background-image");
       root.style.removeProperty("background-size");
@@ -95,6 +98,7 @@ try {
       if (startupFinished) return;
       startupFinished = true;
       root.classList.remove("ydd-browser-default-startup", "ydd-custom-bg-pending");
+      root.style.removeProperty("color-scheme");
       document.body?.classList.remove("ydd-startup-wallpaper-visible");
       startupLayer?.remove();
       startupLayer = null;
