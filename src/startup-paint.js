@@ -33,7 +33,7 @@ try {
       "}" +
       "body.ydd-startup-wallpaper-visible #ydd-startup-wallpaper { opacity: 1; }" +
       "html.ydd-browser-default-startup body.has-custom-bg::before {" +
-      "opacity: 0 !important; transition: opacity 0.2s ease !important;" +
+      "opacity: 0 !important; transition: opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;" +
       "}" +
       "html.ydd-browser-default-startup body.has-custom-bg.ydd-startup-wallpaper-visible::before {" +
       "opacity: 1 !important;" +
