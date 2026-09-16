@@ -10,6 +10,55 @@
     />
     <title>New Tab</title>
 
+    <style id="ydd-critical-startup">
+      html:not(.ydd-startup-ready),
+      html.ydd-wallpaper-startup {
+        scrollbar-color: transparent transparent;
+      }
+      html:not(.ydd-startup-ready) ::-webkit-scrollbar-track,
+      html:not(.ydd-startup-ready) ::-webkit-scrollbar-thumb,
+      html:not(.ydd-startup-ready) ::-webkit-scrollbar-corner,
+      html.ydd-wallpaper-startup ::-webkit-scrollbar-track,
+      html.ydd-wallpaper-startup ::-webkit-scrollbar-thumb,
+      html.ydd-wallpaper-startup ::-webkit-scrollbar-corner {
+        background: transparent !important;
+      }
+
+      html.ydd-wallpaper-startup,
+      html.ydd-wallpaper-startup body {
+        color-scheme: light dark;
+        background-color: var(--ydd-startup-canvas, Canvas) !important;
+        background-image: none !important;
+      }
+
+      #ydd-startup-wallpaper {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -2;
+        display: block;
+        pointer-events: none;
+        object-fit: cover;
+        object-position: center;
+        opacity: 0;
+        transition: opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
+      }
+
+      body.ydd-startup-wallpaper-visible #ydd-startup-wallpaper {
+        opacity: 1;
+      }
+
+      html.ydd-wallpaper-startup body.has-custom-bg::before {
+        opacity: 0 !important;
+        transition: opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
+      }
+
+      html.ydd-wallpaper-startup body.has-custom-bg.ydd-startup-wallpaper-visible::before {
+        opacity: 1 !important;
+      }
+    </style>
+    <script src="src/startup-paint.js"></script>
     <script src="src/theme-init.js"></script>
     <link rel="icon" type="image/png" href="assets/icons/icon32.png" />
     <link rel="stylesheet" href="css/main.css" />
@@ -448,7 +497,7 @@
 
     <!-- Mini settings -->
     <div id="settings-popup" class="popup-container" role="dialog"
-      aria-labelledby="settings-popup-title" aria-hidden="true">
+      aria-labelledby="settings-popup-title" aria-hidden="true" inert>
       <div style="position: relative; text-align: center; margin-bottom: 1rem">
         <button
           id="info-btn"
@@ -769,6 +818,13 @@
               <button id="remove-bg-button" class="settings-button hidden"
                 aria-label="Remove custom background">Remove</button>
             </div>
+          </div>
+          <div class="setting-row">
+            <div class="label">
+              <span>Startup BG</span><small>Match your browser new tab color before wallpaper loads.</small>
+            </div>
+            <input type="color" id="startup-canvas-color-picker"
+              class="color-picker" aria-label="Startup background color" />
           </div>
           <div class="setting-row">
             <div class="label">

@@ -309,12 +309,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const settingsManager = initialize("Settings", () => new SettingsManager());
 
   // Deferred module startup
-  const continueStartup = Promise.resolve(
-    settingsManager?.whenBackgroundReady?.(),
-  )
-    .catch((error) => {
-      console.error("[YDD] Background startup failed:", error);
-    })
+  const backgroundStartup = Promise.all([
+    Promise.resolve(settingsManager?.whenBackgroundReady?.()),
+    Promise.resolve(window.__yddUploadedWallpaperReady),
+  ]).then(() => undefined).catch((error) => {
+    console.error("[YDD] Background startup failed:", error);
+  });
+
+  const revealDashboard = () => {
+    document.body.classList.add("loaded");
+    document.documentElement.classList.add("ydd-startup-ready");
+  };
+  if (localStorage.getItem("has_idb_bg") === "true") {
+    void backgroundStartup.finally(revealDashboard);
+  } else {
+    window.requestAnimationFrame(revealDashboard);
+  }
+
+  const continueStartup = backgroundStartup
     .then(() => {
       const weather = initialize("Weather", () => new Weather());
       return Promise.resolve(weather?.ready).catch((error) => {
@@ -434,7 +446,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  setTimeout(() => document.body.classList.add("loaded"), 100);
 });
 
 // Welcome popup

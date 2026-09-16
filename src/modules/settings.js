@@ -1144,6 +1144,7 @@ export class SettingsManager {
       uploadBg: document.getElementById("upload-bg-button"),
       bgInput: document.getElementById("bg-file-input"),
       removeBg: document.getElementById("remove-bg-button"),
+      startupCanvasColor: document.getElementById("startup-canvas-color-picker"),
       randomBgFreeze: document.getElementById("random-bg-freeze-btn"),
       randomBgRnd: document.getElementById("random-bg-rnd-btn"),
       randomBgSchedule: document.getElementById("random-bg-schedule-select"),
@@ -1381,6 +1382,13 @@ export class SettingsManager {
     }
     if (this.els.locInput) this.els.locInput.value = state.get("yd_city") || "";
 
+    if (this.els.startupCanvasColor) {
+      const startupCanvasColor = localStorage.getItem("startupCanvasColor");
+      if (/^#[\da-f]{6}$/i.test(startupCanvasColor || "")) {
+        this.els.startupCanvasColor.value = startupCanvasColor;
+      }
+    }
+
     if (this.els.bgBlurSelect) {
       const savedBlur = state.get("bgBlurIntensity") || "0";
       this.els.bgBlurSelect.value = savedBlur;
@@ -1441,7 +1449,7 @@ export class SettingsManager {
       document.body.classList.add("has-custom-bg");
       document.body.style.backgroundImage = `url(${bg})`;
       if (this.els.removeBg) this.els.removeBg.classList.remove("hidden");
-    } else {
+    } else if (localStorage.getItem("has_idb_bg") !== "true") {
       document.body.classList.remove("has-custom-bg");
     }
 
@@ -1449,17 +1457,37 @@ export class SettingsManager {
       this.resetGrayscaleForCurrentContext();
     }
 
-    const storedBackgroundReady = secondStorage
-      .getImage()
-      .then((blob) => {
-        if (blob) {
-          document.body.classList.add("has-custom-bg");
-          this.resetGrayscaleForCurrentContext();
-          if (this.els.removeBg) this.els.removeBg.classList.remove("hidden");
-          this.updateAutoThemeGlowState();
+    const hasStoredBackground =
+      localStorage.getItem("has_idb_bg") === "true";
+    const markStoredBackgroundReady = () => {
+      document.body.classList.add("has-custom-bg");
+      this.resetGrayscaleForCurrentContext();
+      if (this.els.removeBg) this.els.removeBg.classList.remove("hidden");
+      this.updateAutoThemeGlowState();
+    };
+    const storedBackgroundReady = hasStoredBackground
+      ? Promise.resolve(window.__yddUploadedWallpaperReady).then((ready) => {
+        if (ready === true) {
+          markStoredBackgroundReady();
+          return;
         }
+
+        return secondStorage.getImage().then((blob) => {
+          if (!blob) return;
+          const objectUrl = URL.createObjectURL(blob);
+          this._releaseActiveBackgroundObjectUrl();
+          this._activeBackgroundObjectUrl = objectUrl;
+          this._removePreloadedBackgroundStyles();
+          this._applyBackgroundUrl(objectUrl);
+          markStoredBackgroundReady();
+        });
       })
-      .catch((err) => console.error("IndexedDB load error:", err));
+      : secondStorage
+        .getImage()
+        .then((blob) => {
+          if (blob) markStoredBackgroundReady();
+        })
+        .catch((err) => console.error("IndexedDB load error:", err));
     this._backgroundReady = Promise.allSettled([
       backgroundReady,
       storedBackgroundReady,
@@ -1693,6 +1721,7 @@ export class SettingsManager {
         state.set("lastSettingsView", "full");
       } else if (isMiniOpen) {
         this.els.popup.classList.remove("visible");
+        this.els.popup.inert = true;
         this.els.btn.setAttribute("aria-expanded", "false");
         this.els.popup.setAttribute("aria-hidden", "true");
         state.set("lastSettingsView", "mini");
@@ -1701,6 +1730,7 @@ export class SettingsManager {
         if (lastView === "full" && fullModal) {
           fullModal.open();
         } else {
+          this.els.popup.inert = false;
           this.els.popup.classList.add("visible");
           this.els.btn.setAttribute("aria-expanded", "true");
           this.els.popup.setAttribute("aria-hidden", "false");
@@ -1719,6 +1749,14 @@ export class SettingsManager {
 
       setTimeout(() => this.els.btn.classList.remove("animating"), 400);
     });
+
+    if (this.els.startupCanvasColor) {
+      this.els.startupCanvasColor.addEventListener("input", (e) => {
+        localStorage.setItem("startupCanvasColor", e.target.value);
+        const fullPicker = document.getElementById("fs-startup-canvas-color");
+        if (fullPicker) fullPicker.value = e.target.value;
+      });
+    }
 
     if (this.els.bgBlurSelect) {
       this.els.bgBlurSelect.addEventListener("change", (e) => {
@@ -1762,6 +1800,7 @@ export class SettingsManager {
         !this.els.btn.contains(e.target)
       ) {
         this.els.popup.classList.remove("visible");
+        this.els.popup.inert = true;
         this.els.btn.setAttribute("aria-expanded", "false");
         this.els.popup.setAttribute("aria-hidden", "true");
         state.set("lastSettingsView", "mini");
@@ -3201,6 +3240,7 @@ export class SettingsManager {
       URL.revokeObjectURL(this._activeBackgroundObjectUrl);
       this._activeBackgroundObjectUrl = null;
     }
+    window.__releaseYddStartupWallpaper?.();
     window.__releaseYddPreloadBackground?.();
   }
 

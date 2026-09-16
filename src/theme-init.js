@@ -1,5 +1,8 @@
 // Theme preload bootstrap
 try {
+  var hasIdbBg = localStorage.getItem("has_idb_bg") === "true";
+  var preserveStartupSurface = hasIdbBg &&
+    document.documentElement.classList.contains("ydd-wallpaper-startup");
   var preloadObjectUrl = null;
   var preloadBackgroundEnabled = true;
   var releasePreloadObjectUrl = function () {
@@ -59,7 +62,9 @@ try {
       ? (THEME_DARK_COLORS[thId] || THEME_COLORS[thId] || "#030303")
       : (THEME_LIGHT_COLORS[thId] || THEME_COLORS[thId] || "#c3c3c3");
     document.documentElement.style.setProperty("--bg-primary", preloadColor);
-    document.documentElement.style.backgroundColor = preloadColor;
+    if (!preserveStartupSurface) {
+      document.documentElement.style.backgroundColor = preloadColor;
+    }
   } else if (gm === "true") {
     document.documentElement.classList.add("gradient-mode-active");
     var gradientId = (localStorage.getItem("gradientThemeId") || "gradient")
@@ -68,7 +73,9 @@ try {
       "data-theme-id",
       "gradient-" + gradientId,
     );
-    document.documentElement.style.backgroundColor = "#302b63";
+    if (!preserveStartupSurface) {
+      document.documentElement.style.backgroundColor = "#302b63";
+    }
   } else {
     document.documentElement.setAttribute("data-theme", "light");
     document.documentElement.setAttribute("data-theme-id", thId);
@@ -77,12 +84,16 @@ try {
       var customBgp = readStoredColor(rawBgp);
       if (customBgp) {
         document.documentElement.style.setProperty("--bg-primary", customBgp);
-        document.documentElement.style.backgroundColor = customBgp;
+        if (!preserveStartupSurface) {
+          document.documentElement.style.backgroundColor = customBgp;
+        }
       }
     } else {
       var color = THEME_LIGHT_COLORS[thId] || THEME_COLORS[thId] || "#c3c3c3";
       document.documentElement.style.setProperty("--bg-primary", color);
-      document.documentElement.style.backgroundColor = color;
+      if (!preserveStartupSurface) {
+        document.documentElement.style.backgroundColor = color;
+      }
     }
   }
 
@@ -321,6 +332,8 @@ try {
     imgUrl = readStoredUrl(bg);
   }
 
+  if (hasIdbBg) imgUrl = null;
+
   if (imgUrl && imgUrl !== "null" && imgUrl !== '"null"') {
     var style = document.createElement("style");
     style.id = "ydd-remote-background";
@@ -334,16 +347,12 @@ try {
     document.head.appendChild(style);
   }
 
-  var hasIdbBg = localStorage.getItem("has_idb_bg") === "true";
   if (imgUrl || hasIdbBg) {
     document.documentElement.classList.add("ydd-custom-bg-pending");
   }
   var fallback = THEME_COLORS[thId] || "#0a0a0a";
   var randomModeWithoutImage = bgMode === '"random"' && !imgUrl;
-  if (
-    (hasIdbBg && bgMode !== '"random"') || bgMode === '"freeze"' ||
-    randomModeWithoutImage
-  ) {
+  if (!hasIdbBg && (bgMode === '"freeze"' || randomModeWithoutImage)) {
     var preloader = document.createElement("style");
     preloader.id = "idb-preloader";
     var pColor = fallback || "#0a0a0a";
@@ -352,15 +361,15 @@ try {
     document.head.appendChild(preloader);
   }
 
-  // IndexedDB background preload
-  var request = indexedDB.open("YDD_Storage", 2);
-  request.onupgradeneeded = function (event) {
+  // Uploaded backgrounds are handled by startup-paint.js.
+  var request = hasIdbBg ? null : indexedDB.open("YDD_Storage", 2);
+  if (request) request.onupgradeneeded = function (event) {
     var db = event.target.result;
     if (!db.objectStoreNames.contains("images")) {
       db.createObjectStore("images");
     }
   };
-  request.onsuccess = function (event) {
+  if (request) request.onsuccess = function (event) {
     var db = event.target.result;
     if (db.objectStoreNames.contains("images")) {
       var transaction = db.transaction("images", "readonly");
@@ -429,7 +438,7 @@ try {
       if (p) p.remove();
     }
   };
-  request.onerror = function () {
+  if (request) request.onerror = function () {
     if (!imgUrl) {
       document.documentElement.classList.remove("ydd-custom-bg-pending");
     }
