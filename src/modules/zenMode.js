@@ -33,6 +33,18 @@ export class ZenModeController {
 
   // Border UI cleanup
   closeBorderUi() {
+    const settingsPopup = document.getElementById("settings-popup");
+    if (settingsPopup?.classList.contains("visible")) {
+      settingsPopup.classList.remove("visible");
+      settingsPopup.inert = true;
+      settingsPopup.setAttribute("aria-hidden", "true");
+      document.getElementById("settings-toggle-button")?.setAttribute(
+        "aria-expanded",
+        "false",
+      );
+      state.set("lastSettingsView", "mini");
+    }
+
     document
       .querySelectorAll(".popup-container.visible")
       .forEach((popup) => popup.classList.remove("visible"));

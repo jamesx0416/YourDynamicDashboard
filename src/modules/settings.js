@@ -1144,6 +1144,8 @@ export class SettingsManager {
       uploadBg: document.getElementById("upload-bg-button"),
       bgInput: document.getElementById("bg-file-input"),
       removeBg: document.getElementById("remove-bg-button"),
+      startupCanvasColor: document.getElementById("startup-canvas-color-picker"),
+      startupFade: document.getElementById("startup-fade-toggle"),
       randomBgFreeze: document.getElementById("random-bg-freeze-btn"),
       randomBgRnd: document.getElementById("random-bg-rnd-btn"),
       randomBgSchedule: document.getElementById("random-bg-schedule-select"),
@@ -1380,6 +1382,17 @@ export class SettingsManager {
       this.els.widgetControl.value = state.get("widgetControl") || "all";
     }
     if (this.els.locInput) this.els.locInput.value = state.get("yd_city") || "";
+
+    if (this.els.startupCanvasColor) {
+      const startupCanvasColor = localStorage.getItem("startupCanvasColor");
+      if (/^#[\da-f]{6}$/i.test(startupCanvasColor || "")) {
+        this.els.startupCanvasColor.value = startupCanvasColor;
+      }
+    }
+    if (this.els.startupFade) {
+      this.els.startupFade.checked =
+        localStorage.getItem("startupFadeEnabled") !== "false";
+    }
 
     if (this.els.bgBlurSelect) {
       const savedBlur = state.get("bgBlurIntensity") || "0";
@@ -1693,6 +1706,7 @@ export class SettingsManager {
         state.set("lastSettingsView", "full");
       } else if (isMiniOpen) {
         this.els.popup.classList.remove("visible");
+        this.els.popup.inert = true;
         this.els.btn.setAttribute("aria-expanded", "false");
         this.els.popup.setAttribute("aria-hidden", "true");
         state.set("lastSettingsView", "mini");
@@ -1701,6 +1715,7 @@ export class SettingsManager {
         if (lastView === "full" && fullModal) {
           fullModal.open();
         } else {
+          this.els.popup.inert = false;
           this.els.popup.classList.add("visible");
           this.els.btn.setAttribute("aria-expanded", "true");
           this.els.popup.setAttribute("aria-hidden", "false");
@@ -1719,6 +1734,21 @@ export class SettingsManager {
 
       setTimeout(() => this.els.btn.classList.remove("animating"), 400);
     });
+
+    if (this.els.startupCanvasColor) {
+      this.els.startupCanvasColor.addEventListener("input", (e) => {
+        localStorage.setItem("startupCanvasColor", e.target.value);
+        const fullPicker = document.getElementById("fs-startup-canvas-color");
+        if (fullPicker) fullPicker.value = e.target.value;
+      });
+    }
+    if (this.els.startupFade) {
+      this.els.startupFade.addEventListener("change", (e) => {
+        localStorage.setItem("startupFadeEnabled", String(e.target.checked));
+        const fullToggle = document.getElementById("fs-startup-fade-toggle");
+        if (fullToggle) fullToggle.checked = e.target.checked;
+      });
+    }
 
     if (this.els.bgBlurSelect) {
       this.els.bgBlurSelect.addEventListener("change", (e) => {
@@ -1762,6 +1792,7 @@ export class SettingsManager {
         !this.els.btn.contains(e.target)
       ) {
         this.els.popup.classList.remove("visible");
+        this.els.popup.inert = true;
         this.els.btn.setAttribute("aria-expanded", "false");
         this.els.popup.setAttribute("aria-hidden", "true");
         state.set("lastSettingsView", "mini");

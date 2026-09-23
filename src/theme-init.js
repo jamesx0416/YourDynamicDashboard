@@ -2,6 +2,17 @@
 try {
   var preloadObjectUrl = null;
   var preloadBackgroundEnabled = true;
+  var storedStartupCanvasColor = localStorage.getItem("startupCanvasColor");
+  var startupCanvasColor = /^#[\da-f]{6}$/i.test(
+      storedStartupCanvasColor || "",
+    )
+    ? storedStartupCanvasColor
+    : null;
+  var startupFadeEnabled =
+    localStorage.getItem("startupFadeEnabled") !== "false";
+  if (startupCanvasColor) {
+    document.documentElement.style.backgroundColor = startupCanvasColor;
+  }
   var releasePreloadObjectUrl = function () {
     if (preloadObjectUrl) {
       URL.revokeObjectURL(preloadObjectUrl);
@@ -59,7 +70,9 @@ try {
       ? (THEME_DARK_COLORS[thId] || THEME_COLORS[thId] || "#030303")
       : (THEME_LIGHT_COLORS[thId] || THEME_COLORS[thId] || "#c3c3c3");
     document.documentElement.style.setProperty("--bg-primary", preloadColor);
-    document.documentElement.style.backgroundColor = preloadColor;
+    if (!startupCanvasColor) {
+      document.documentElement.style.backgroundColor = preloadColor;
+    }
   } else if (gm === "true") {
     document.documentElement.classList.add("gradient-mode-active");
     var gradientId = (localStorage.getItem("gradientThemeId") || "gradient")
@@ -68,7 +81,9 @@ try {
       "data-theme-id",
       "gradient-" + gradientId,
     );
-    document.documentElement.style.backgroundColor = "#302b63";
+    if (!startupCanvasColor) {
+      document.documentElement.style.backgroundColor = "#302b63";
+    }
   } else {
     document.documentElement.setAttribute("data-theme", "light");
     document.documentElement.setAttribute("data-theme-id", thId);
@@ -77,12 +92,16 @@ try {
       var customBgp = readStoredColor(rawBgp);
       if (customBgp) {
         document.documentElement.style.setProperty("--bg-primary", customBgp);
-        document.documentElement.style.backgroundColor = customBgp;
+        if (!startupCanvasColor) {
+          document.documentElement.style.backgroundColor = customBgp;
+        }
       }
     } else {
       var color = THEME_LIGHT_COLORS[thId] || THEME_COLORS[thId] || "#c3c3c3";
       document.documentElement.style.setProperty("--bg-primary", color);
-      document.documentElement.style.backgroundColor = color;
+      if (!startupCanvasColor) {
+        document.documentElement.style.backgroundColor = color;
+      }
     }
   }
 
@@ -346,10 +365,39 @@ try {
   ) {
     var preloader = document.createElement("style");
     preloader.id = "idb-preloader";
-    var pColor = fallback || "#0a0a0a";
+    var pColor = startupCanvasColor || fallback || "#0a0a0a";
     preloader.textContent = "body { background-color: " + pColor +
       " !important; background-image: none !important; transition: none !important; }";
     document.head.appendChild(preloader);
+  }
+
+  if (
+    !hasIdbBg && !imgUrl && bgMode !== '"random"' && bgMode !== '"freeze"' &&
+    startupCanvasColor && startupFadeEnabled
+  ) {
+    var fadeTheme = function () {
+      var layer = document.createElement("div");
+      layer.id = "ydd-simple-theme-fade";
+      layer.setAttribute("aria-hidden", "true");
+      layer.style.cssText =
+        "position:fixed;inset:0;z-index:-1;pointer-events:none;" +
+        "background:" + startupCanvasColor + ";opacity:1;" +
+        "transition:opacity 0.2s linear";
+      document.body.prepend(layer);
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          layer.style.opacity = "0";
+        });
+      });
+      var removeThemeFade = function () {
+        if (!layer.isConnected) return;
+        layer.remove();
+      };
+      layer.addEventListener("transitionend", removeThemeFade, { once: true });
+      window.setTimeout(removeThemeFade, 250);
+    };
+    if (document.body) fadeTheme();
+    else document.addEventListener("DOMContentLoaded", fadeTheme, { once: true });
   }
 
   // IndexedDB background preload
@@ -400,14 +448,18 @@ try {
           window.__yddPreloadBackgroundUrl = objectUrl;
           var style = document.createElement("style");
           style.id = "ydd-idb-background";
-          style.textContent =
-            "body.ydd-idb-fading { background-color: transparent !important; background-image: none !important; }" +
-            "#ydd-simple-bg-fade { position: fixed; inset: 0; z-index: -2;" +
-            " background-image: url(" + objectUrl + "); background-size: cover;" +
-            " background-position: center; opacity: 0; transition: opacity 0.2s linear; }";
+          style.textContent = startupFadeEnabled
+            ? "body.ydd-idb-fading { background-color: transparent !important; background-image: none !important; }" +
+              "#ydd-simple-bg-fade { position: fixed; inset: 0; z-index: -2;" +
+              " background-image: url(" + objectUrl + "); background-size: cover;" +
+              " background-position: center; opacity: 0; transition: opacity 0.2s linear; }"
+            : "body { background-image: url(" + objectUrl +
+              ") !important; background-size: cover !important; background-position: center !important; }";
           document.head.appendChild(style);
           var showBackground = function () {
-            document.body.classList.add("has-custom-bg", "ydd-idb-fading");
+            document.body.classList.add("has-custom-bg");
+            if (!startupFadeEnabled) return;
+            document.body.classList.add("ydd-idb-fading");
             var layer = document.createElement("div");
             layer.id = "ydd-simple-bg-fade";
             layer.setAttribute("aria-hidden", "true");

@@ -1010,6 +1010,17 @@ export class FullSettingsModal {
     const bgControls = this._el("div", { className: "background-controls" });
     bgControls.append(uploadBtn, bgFileInput, removeBtn);
 
+    const startupCanvasColor = this._el("input", {
+      type: "color",
+      id: "fs-startup-canvas-color",
+      className: "color-picker",
+    });
+    startupCanvasColor.setAttribute("aria-label", "Startup background color");
+    this.els.fsStartupCanvasColor = startupCanvasColor;
+    const startupFade = this._toggle("fs-startup-fade-toggle");
+    startupFade.input.setAttribute("aria-label", "Fade startup background");
+    this.els.fsStartupFade = startupFade.input;
+
     const freezeBtn = this._el("button", {
       className: "settings-button hidden",
       id: "fs-freeze-btn",
@@ -1069,6 +1080,16 @@ export class FullSettingsModal {
     pane.appendChild(
       this._section("Background", [
         this._row("Custom BG", "Upload an image.", bgControls),
+        this._row(
+          "Startup BG",
+          "Choose the color shown before your theme or wallpaper appears.",
+          startupCanvasColor,
+        ),
+        this._row(
+          "Startup Fade",
+          "Fade from the startup color into your theme or wallpaper.",
+          startupFade.wrapper,
+        ),
         this._row(randomBgLabel, "Fetch image from Lorem Picsum.", rndControls),
         blurRow,
       ]),
@@ -1404,6 +1425,7 @@ export class FullSettingsModal {
         state.set("lastSettingsView", "mini");
         const sm = this._sm();
         if (sm && sm.els.popup) {
+          sm.els.popup.inert = false;
           sm.els.popup.classList.add("visible");
           sm.els.popup.setAttribute("aria-hidden", "false");
           sm.els.btn?.setAttribute("aria-expanded", "true");
@@ -1599,6 +1621,17 @@ export class FullSettingsModal {
         await sm.freezeRandomBackground();
         this._updateBgState();
       }
+    });
+
+    this.els.fsStartupCanvasColor.addEventListener("input", (e) => {
+      localStorage.setItem("startupCanvasColor", e.target.value);
+      const miniPicker = document.getElementById("startup-canvas-color-picker");
+      if (miniPicker) miniPicker.value = e.target.value;
+    });
+    this.els.fsStartupFade.addEventListener("change", (e) => {
+      localStorage.setItem("startupFadeEnabled", String(e.target.checked));
+      const miniToggle = document.getElementById("startup-fade-toggle");
+      if (miniToggle) miniToggle.checked = e.target.checked;
     });
 
     this.els.fsBlurSelect.addEventListener("change", (e) => {
@@ -2034,6 +2067,12 @@ export class FullSettingsModal {
     this.els.fsScPosition.value = state.get("shortcutsPosition") || "bottom";
     this.els.fsLocInput.value = state.get("yd_city") || "";
     this.els.fsBlurSelect.value = state.get("bgBlurIntensity") || "0";
+    const startupCanvasColor = localStorage.getItem("startupCanvasColor");
+    if (/^#[\da-f]{6}$/i.test(startupCanvasColor || "")) {
+      this.els.fsStartupCanvasColor.value = startupCanvasColor;
+    }
+    this.els.fsStartupFade.checked =
+      localStorage.getItem("startupFadeEnabled") !== "false";
     this.els.fsRandomBgSchedule.value = state.get("randomBgSchedule") || "1m";
 
     const isAnalog = state.get("clockType") === "analog";
@@ -2061,6 +2100,11 @@ export class FullSettingsModal {
 
     const miniPopup = document.getElementById("settings-popup");
     if (miniPopup) {
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && miniPopup.contains(focused)) {
+        focused.blur();
+      }
+      miniPopup.inert = true;
       miniPopup.classList.remove("visible");
       miniPopup.setAttribute("aria-hidden", "true");
       document.getElementById("settings-toggle-button")?.setAttribute(

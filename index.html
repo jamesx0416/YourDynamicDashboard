@@ -448,7 +448,7 @@
 
     <!-- Mini settings -->
     <div id="settings-popup" class="popup-container" role="dialog"
-      aria-labelledby="settings-popup-title" aria-hidden="true">
+      aria-labelledby="settings-popup-title" aria-hidden="true" inert>
       <div style="position: relative; text-align: center; margin-bottom: 1rem">
         <button
           id="info-btn"
@@ -769,6 +769,23 @@
               <button id="remove-bg-button" class="settings-button hidden"
                 aria-label="Remove custom background">Remove</button>
             </div>
+          </div>
+          <div class="setting-row">
+            <div class="label">
+              <span>Startup BG</span><small>Choose the color shown before your theme or wallpaper appears.</small>
+            </div>
+            <input type="color" id="startup-canvas-color-picker"
+              class="color-picker" aria-label="Startup background color" />
+          </div>
+          <div class="setting-row">
+            <div class="label">
+              <span>Startup Fade</span><small>Fade from the startup color into your theme or wallpaper.</small>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="startup-fade-toggle"
+                aria-label="Fade startup background" checked />
+              <span class="slider"></span>
+            </label>
           </div>
           <div class="setting-row">
             <div class="label">
