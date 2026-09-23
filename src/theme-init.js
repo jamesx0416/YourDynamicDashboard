@@ -10,9 +10,47 @@ try {
     : null;
   var startupFadeEnabled =
     localStorage.getItem("startupFadeEnabled") !== "false";
-  if (startupCanvasColor) {
+  var startupSurfaceActive = Boolean(startupCanvasColor && startupFadeEnabled);
+  var finalDocumentBackground = null;
+  var startupGuardStyle = null;
+  if (startupSurfaceActive) {
     document.documentElement.style.backgroundColor = startupCanvasColor;
+    document.documentElement.classList.add(
+      "ydd-startup-hold",
+      "ydd-startup-fading",
+    );
+    startupGuardStyle = document.createElement("style");
+    startupGuardStyle.id = "ydd-startup-guard";
+    startupGuardStyle.textContent =
+      "html.ydd-startup-hold body { visibility: hidden !important; }" +
+      "html.ydd-startup-fading #sample-dark-background {" +
+      " transition: none !important; }";
+    document.head.appendChild(startupGuardStyle);
   }
+  var applyFinalDocumentBackground = function () {
+    if (!startupSurfaceActive) return;
+    if (finalDocumentBackground) {
+      document.documentElement.style.backgroundColor = finalDocumentBackground;
+    } else {
+      document.documentElement.style.removeProperty("background-color");
+    }
+  };
+  var releaseStartupHold = function () {
+    if (!startupSurfaceActive) return;
+    document.documentElement.classList.remove("ydd-startup-hold");
+  };
+  var revealStartupSurface = function () {
+    applyFinalDocumentBackground();
+    releaseStartupHold();
+  };
+  var finishStartupSurface = function () {
+    applyFinalDocumentBackground();
+    releaseStartupHold();
+    document.documentElement.classList.remove("ydd-startup-fading");
+    startupGuardStyle?.remove();
+    startupGuardStyle = null;
+    startupSurfaceActive = false;
+  };
   var releasePreloadObjectUrl = function () {
     if (preloadObjectUrl) {
       URL.revokeObjectURL(preloadObjectUrl);
@@ -70,7 +108,8 @@ try {
       ? (THEME_DARK_COLORS[thId] || THEME_COLORS[thId] || "#030303")
       : (THEME_LIGHT_COLORS[thId] || THEME_COLORS[thId] || "#c3c3c3");
     document.documentElement.style.setProperty("--bg-primary", preloadColor);
-    if (!startupCanvasColor) {
+    finalDocumentBackground = preloadColor;
+    if (!startupSurfaceActive) {
       document.documentElement.style.backgroundColor = preloadColor;
     }
   } else if (gm === "true") {
@@ -81,7 +120,8 @@ try {
       "data-theme-id",
       "gradient-" + gradientId,
     );
-    if (!startupCanvasColor) {
+    finalDocumentBackground = "#302b63";
+    if (!startupSurfaceActive) {
       document.documentElement.style.backgroundColor = "#302b63";
     }
   } else {
@@ -92,14 +132,16 @@ try {
       var customBgp = readStoredColor(rawBgp);
       if (customBgp) {
         document.documentElement.style.setProperty("--bg-primary", customBgp);
-        if (!startupCanvasColor) {
+        finalDocumentBackground = customBgp;
+        if (!startupSurfaceActive) {
           document.documentElement.style.backgroundColor = customBgp;
         }
       }
     } else {
       var color = THEME_LIGHT_COLORS[thId] || THEME_COLORS[thId] || "#c3c3c3";
       document.documentElement.style.setProperty("--bg-primary", color);
-      if (!startupCanvasColor) {
+      finalDocumentBackground = color;
+      if (!startupSurfaceActive) {
         document.documentElement.style.backgroundColor = color;
       }
     }
@@ -365,25 +407,25 @@ try {
   ) {
     var preloader = document.createElement("style");
     preloader.id = "idb-preloader";
-    var pColor = startupCanvasColor || fallback || "#0a0a0a";
+    var pColor = startupSurfaceActive
+      ? startupCanvasColor
+      : fallback || "#0a0a0a";
     preloader.textContent = "body { background-color: " + pColor +
       " !important; background-image: none !important; transition: none !important; }";
     document.head.appendChild(preloader);
   }
 
-  if (
-    !hasIdbBg && !imgUrl && bgMode !== '"random"' && bgMode !== '"freeze"' &&
-    startupCanvasColor && startupFadeEnabled
-  ) {
+  if (!hasIdbBg && startupSurfaceActive) {
     var fadeTheme = function () {
       var layer = document.createElement("div");
       layer.id = "ydd-simple-theme-fade";
       layer.setAttribute("aria-hidden", "true");
       layer.style.cssText =
-        "position:fixed;inset:0;z-index:-1;pointer-events:none;" +
+        "position:fixed;inset:0;z-index:2147483647;pointer-events:none;" +
         "background:" + startupCanvasColor + ";opacity:1;" +
         "transition:opacity 0.2s linear";
-      document.body.prepend(layer);
+      document.body.appendChild(layer);
+      revealStartupSurface();
       requestAnimationFrame(function () {
         requestAnimationFrame(function () {
           layer.style.opacity = "0";
@@ -392,9 +434,10 @@ try {
       var removeThemeFade = function () {
         if (!layer.isConnected) return;
         layer.remove();
+        finishStartupSurface();
       };
       layer.addEventListener("transitionend", removeThemeFade, { once: true });
-      window.setTimeout(removeThemeFade, 250);
+      window.setTimeout(removeThemeFade, 350);
     };
     if (document.body) fadeTheme();
     else document.addEventListener("DOMContentLoaded", fadeTheme, { once: true });
@@ -449,7 +492,7 @@ try {
           var style = document.createElement("style");
           style.id = "ydd-idb-background";
           style.textContent = startupFadeEnabled
-            ? "body.ydd-idb-fading { background-color: transparent !important; background-image: none !important; }" +
+            ? "body.ydd-idb-fading { background-color: transparent !important; background-image: none !important; transition: none !important; }" +
               "#ydd-simple-bg-fade { position: fixed; inset: 0; z-index: -2;" +
               " background-image: url(" + objectUrl + "); background-size: cover;" +
               " background-position: center; opacity: 0; transition: opacity 0.2s linear; }"
@@ -464,6 +507,7 @@ try {
             layer.id = "ydd-simple-bg-fade";
             layer.setAttribute("aria-hidden", "true");
             document.body.prepend(layer);
+            releaseStartupHold();
             requestAnimationFrame(function () {
               requestAnimationFrame(function () {
                 layer.style.opacity = "1";
@@ -473,6 +517,7 @@ try {
               style.textContent = "body { background-image: url(" + objectUrl +
                 ") !important; background-size: cover !important; background-position: center !important; }";
               document.body.classList.remove("ydd-idb-fading");
+              finishStartupSurface();
               requestAnimationFrame(function () {
                 layer.remove();
               });
@@ -480,13 +525,17 @@ try {
           };
           if (document.body) showBackground();
           else document.addEventListener("DOMContentLoaded", showBackground, { once: true });
-        } else if (!imgUrl) {
-          document.documentElement.classList.remove("ydd-custom-bg-pending");
+        } else {
+          if (hasIdbBg) finishStartupSurface();
+          if (!imgUrl) {
+            document.documentElement.classList.remove("ydd-custom-bg-pending");
+          }
         }
         var p = document.getElementById("idb-preloader");
         if (p) p.remove();
       };
       getRequest.onerror = function () {
+        if (hasIdbBg) finishStartupSurface();
         if (!imgUrl) {
           document.documentElement.classList.remove("ydd-custom-bg-pending");
         }
@@ -495,11 +544,13 @@ try {
       };
     } else {
       db.close();
+      if (hasIdbBg) finishStartupSurface();
       var p = document.getElementById("idb-preloader");
       if (p) p.remove();
     }
   };
   request.onerror = function () {
+    if (hasIdbBg) finishStartupSurface();
     if (!imgUrl) {
       document.documentElement.classList.remove("ydd-custom-bg-pending");
     }
