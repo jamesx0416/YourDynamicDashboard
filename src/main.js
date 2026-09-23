@@ -53,6 +53,7 @@ class SampleDarkBackground {
     this.particles = [];
     this.frameId = 0;
     this.isAnimating = false;
+    this.active = false;
     this.pointer = { x: -1000, y: -1000, active: false };
     this.reduceMotion = Boolean(
       window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches,
@@ -135,16 +136,28 @@ class SampleDarkBackground {
 
     const active = this.isActive();
     this.container.classList.toggle("is-active", active);
-    this.stop();
 
     if (!active) {
-      this.clear();
+      if (this.active) {
+        this.stop();
+        this.clear();
+      }
+      this.active = false;
       return;
     }
 
-    this.resize();
-    if (this.shouldAnimate()) this.start();
-    else this.drawFrame(false);
+    if (!this.active) {
+      this.active = true;
+      this.resize();
+      this.drawFrame(false);
+    }
+
+    if (this.shouldAnimate()) {
+      this.start();
+    } else {
+      this.stop();
+      this.drawFrame(false);
+    }
   }
 
   makeParticle() {
