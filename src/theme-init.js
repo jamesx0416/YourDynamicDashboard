@@ -400,16 +400,34 @@ try {
           window.__yddPreloadBackgroundUrl = objectUrl;
           var style = document.createElement("style");
           style.id = "ydd-idb-background";
-          style.textContent = "body { background-image: url(" + objectUrl +
-            ") !important; background-size: cover !important; background-position: center !important; }";
+          style.textContent =
+            "body.ydd-idb-fading { background-color: transparent !important; background-image: none !important; }" +
+            "#ydd-simple-bg-fade { position: fixed; inset: 0; z-index: -2;" +
+            " background-image: url(" + objectUrl + "); background-size: cover;" +
+            " background-position: center; opacity: 0; transition: opacity 0.2s linear; }";
           document.head.appendChild(style);
-          if (document.body) {
-            document.body.classList.add("has-custom-bg");
-          } else {
-            document.addEventListener("DOMContentLoaded", function () {
-              document.body.classList.add("has-custom-bg");
+          var showBackground = function () {
+            document.body.classList.add("has-custom-bg", "ydd-idb-fading");
+            var layer = document.createElement("div");
+            layer.id = "ydd-simple-bg-fade";
+            layer.setAttribute("aria-hidden", "true");
+            document.body.prepend(layer);
+            requestAnimationFrame(function () {
+              requestAnimationFrame(function () {
+                layer.style.opacity = "1";
+              });
             });
-          }
+            layer.addEventListener("transitionend", function () {
+              style.textContent = "body { background-image: url(" + objectUrl +
+                ") !important; background-size: cover !important; background-position: center !important; }";
+              document.body.classList.remove("ydd-idb-fading");
+              requestAnimationFrame(function () {
+                layer.remove();
+              });
+            }, { once: true });
+          };
+          if (document.body) showBackground();
+          else document.addEventListener("DOMContentLoaded", showBackground, { once: true });
         } else if (!imgUrl) {
           document.documentElement.classList.remove("ydd-custom-bg-pending");
         }

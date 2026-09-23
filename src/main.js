@@ -434,7 +434,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  setTimeout(() => document.body.classList.add("loaded"), 100);
+  requestAnimationFrame(() => document.body.classList.add("loaded"));
 });
 
 // Welcome popup
