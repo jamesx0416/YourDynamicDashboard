@@ -493,9 +493,11 @@ try {
           style.id = "ydd-idb-background";
           style.textContent = startupFadeEnabled
             ? "body.ydd-idb-fading { background-color: transparent !important; background-image: none !important; transition: none !important; }" +
+              "@keyframes ydd-simple-bg-fade-in { from { opacity: 0; } to { opacity: 1; } }" +
               "#ydd-simple-bg-fade { position: fixed; inset: 0; z-index: -2;" +
               " background-image: url(" + objectUrl + "); background-size: cover;" +
-              " background-position: center; opacity: 0; transition: opacity 0.2s linear; }"
+              " background-position: center; opacity: 0;" +
+              " animation: ydd-simple-bg-fade-in 0.2s linear forwards; }"
             : "body { background-image: url(" + objectUrl +
               ") !important; background-size: cover !important; background-position: center !important; }";
           document.head.appendChild(style);
@@ -508,12 +510,7 @@ try {
             layer.setAttribute("aria-hidden", "true");
             document.body.prepend(layer);
             releaseStartupHold();
-            requestAnimationFrame(function () {
-              requestAnimationFrame(function () {
-                layer.style.opacity = "1";
-              });
-            });
-            layer.addEventListener("transitionend", function () {
+            layer.addEventListener("animationend", function () {
               style.textContent = "body { background-image: url(" + objectUrl +
                 ") !important; background-size: cover !important; background-position: center !important; }";
               document.body.classList.remove("ydd-idb-fading");
