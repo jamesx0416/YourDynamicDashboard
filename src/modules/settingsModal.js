@@ -8,6 +8,7 @@ import {
   makeKeyboardInteractive,
   playNotificationSound,
   showCustomModal,
+  syncStartupCanvasAvailability,
 } from "../utils.js";
 import {
   CONFIG,
@@ -1014,6 +1015,7 @@ export class FullSettingsModal {
       type: "color",
       id: "fs-startup-canvas-color",
       className: "color-picker",
+      value: "#ffffff",
     });
     startupCanvasColor.setAttribute("aria-label", "Startup background color");
     this.els.fsStartupCanvasColor = startupCanvasColor;
@@ -1077,19 +1079,23 @@ export class FullSettingsModal {
     );
     this.els.fsBlurRow = blurRow;
 
+    const startupCanvasRow = this._row(
+      "Startup BG",
+      "Choose the color shown before your theme or wallpaper appears.",
+      startupCanvasColor,
+    );
+    startupCanvasRow.id = "fs-startup-canvas-color-row";
+    this.els.fsStartupCanvasRow = startupCanvasRow;
+
     pane.appendChild(
       this._section("Background", [
         this._row("Custom BG", "Upload an image.", bgControls),
-        this._row(
-          "Startup BG",
-          "Choose the color shown before your theme or wallpaper appears.",
-          startupCanvasColor,
-        ),
         this._row(
           "Startup Fade",
           "Fade from the startup color into your theme or wallpaper.",
           startupFade.wrapper,
         ),
+        startupCanvasRow,
         this._row(randomBgLabel, "Fetch image from Lorem Picsum.", rndControls),
         blurRow,
       ]),
@@ -1632,6 +1638,7 @@ export class FullSettingsModal {
       localStorage.setItem("startupFadeEnabled", String(e.target.checked));
       const miniToggle = document.getElementById("startup-fade-toggle");
       if (miniToggle) miniToggle.checked = e.target.checked;
+      syncStartupCanvasAvailability();
     });
 
     this.els.fsBlurSelect.addEventListener("change", (e) => {
@@ -2073,6 +2080,7 @@ export class FullSettingsModal {
     }
     this.els.fsStartupFade.checked =
       localStorage.getItem("startupFadeEnabled") !== "false";
+    syncStartupCanvasAvailability();
     this.els.fsRandomBgSchedule.value = state.get("randomBgSchedule") || "1m";
 
     const isAnalog = state.get("clockType") === "analog";

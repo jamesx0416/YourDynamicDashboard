@@ -10,9 +10,9 @@
     />
     <title>New Tab</title>
 
-    <script src="src/theme-init.js"></script>
     <link rel="icon" type="image/png" href="assets/icons/icon32.png" />
     <link rel="stylesheet" href="css/main.css" />
+    <script src="src/theme-init.js"></script>
   </head>
   <!-- Dashboard interface -->
   <body>
@@ -772,13 +772,6 @@
           </div>
           <div class="setting-row">
             <div class="label">
-              <span>Startup BG</span><small>Choose the color shown before your theme or wallpaper appears.</small>
-            </div>
-            <input type="color" id="startup-canvas-color-picker"
-              class="color-picker" aria-label="Startup background color" />
-          </div>
-          <div class="setting-row">
-            <div class="label">
               <span>Startup Fade</span><small>Fade from the startup color into your theme or wallpaper.</small>
             </div>
             <label class="toggle-switch">
@@ -786,6 +779,14 @@
                 aria-label="Fade startup background" checked />
               <span class="slider"></span>
             </label>
+          </div>
+          <div class="setting-row" id="startup-canvas-color-row">
+            <div class="label">
+              <span>Startup BG</span><small>Choose the color shown before your theme or wallpaper appears.</small>
+            </div>
+            <input type="color" id="startup-canvas-color-picker"
+              class="color-picker" aria-label="Startup background color"
+              value="#ffffff" />
           </div>
           <div class="setting-row">
             <div class="label">

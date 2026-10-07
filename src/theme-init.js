@@ -7,25 +7,17 @@ try {
       storedStartupCanvasColor || "",
     )
     ? storedStartupCanvasColor
-    : null;
+    : "#ffffff";
   var startupFadeEnabled =
     localStorage.getItem("startupFadeEnabled") !== "false";
-  var startupSurfaceActive = Boolean(startupCanvasColor && startupFadeEnabled);
+  var startupSurfaceActive = startupFadeEnabled;
   var finalDocumentBackground = null;
-  var startupGuardStyle = null;
   if (startupSurfaceActive) {
     document.documentElement.style.backgroundColor = startupCanvasColor;
     document.documentElement.classList.add(
       "ydd-startup-hold",
       "ydd-startup-fading",
     );
-    startupGuardStyle = document.createElement("style");
-    startupGuardStyle.id = "ydd-startup-guard";
-    startupGuardStyle.textContent =
-      "html.ydd-startup-hold body { visibility: hidden !important; }" +
-      "html.ydd-startup-fading #sample-dark-background {" +
-      " transition: none !important; }";
-    document.head.appendChild(startupGuardStyle);
   }
   var applyFinalDocumentBackground = function () {
     if (!startupSurfaceActive) return;
@@ -47,8 +39,6 @@ try {
     applyFinalDocumentBackground();
     releaseStartupHold();
     document.documentElement.classList.remove("ydd-startup-fading");
-    startupGuardStyle?.remove();
-    startupGuardStyle = null;
     startupSurfaceActive = false;
   };
   var releasePreloadObjectUrl = function () {
@@ -407,12 +397,29 @@ try {
   ) {
     var preloader = document.createElement("style");
     preloader.id = "idb-preloader";
-    var pColor = startupSurfaceActive
-      ? startupCanvasColor
-      : fallback || "#0a0a0a";
+    var pColor = startupSurfaceActive ? startupCanvasColor : fallback;
     preloader.textContent = "body { background-color: " + pColor +
       " !important; background-image: none !important; transition: none !important; }";
     document.head.appendChild(preloader);
+  }
+
+  var startupPreloadTimedOut = false;
+  var startupPreloadTimeout = null;
+  var finishStartupFallback = function () {
+    startupPreloadTimedOut = true;
+    window.clearTimeout(startupPreloadTimeout);
+    document.getElementById("idb-preloader")?.remove();
+    document.getElementById("ydd-simple-bg-fade")?.remove();
+    document.getElementById("ydd-idb-background")?.remove();
+    document.body?.classList.remove("ydd-idb-fading");
+    if (!imgUrl && !document.body?.style.backgroundImage) {
+      document.body?.classList.remove("has-custom-bg");
+    }
+    document.documentElement.classList.remove("ydd-custom-bg-pending");
+    finishStartupSurface();
+  };
+  if (hasIdbBg && startupSurfaceActive) {
+    startupPreloadTimeout = window.setTimeout(finishStartupFallback, 3000);
   }
 
   if (!hasIdbBg && startupSurfaceActive) {
@@ -453,6 +460,10 @@ try {
   };
   request.onsuccess = function (event) {
     var db = event.target.result;
+    if (startupPreloadTimedOut) {
+      db.close();
+      return;
+    }
     if (db.objectStoreNames.contains("images")) {
       var transaction = db.transaction("images", "readonly");
       var store = transaction.objectStore("images");
@@ -474,6 +485,7 @@ try {
       };
 
       getRequest.onsuccess = function (e) {
+        if (startupPreloadTimedOut) return;
         var storedBackground = e.target.result;
         var storedRandomBlob =
           randomUsesCurrentRecord && storedBackground?.blob instanceof Blob &&
@@ -493,11 +505,10 @@ try {
           style.id = "ydd-idb-background";
           style.textContent = startupFadeEnabled
             ? "body.ydd-idb-fading { background-color: transparent !important; background-image: none !important; transition: none !important; }" +
-              "@keyframes ydd-simple-bg-fade-in { from { opacity: 0; } to { opacity: 1; } }" +
               "#ydd-simple-bg-fade { position: fixed; inset: 0; z-index: -2;" +
               " background-image: url(" + objectUrl + "); background-size: cover;" +
               " background-position: center; opacity: 0;" +
-              " animation: ydd-simple-bg-fade-in 0.2s linear forwards; }"
+              " transition: opacity 0.2s linear; will-change: opacity; }"
             : "body { background-image: url(" + objectUrl +
               ") !important; background-size: cover !important; background-position: center !important; }";
           document.head.appendChild(style);
@@ -509,8 +520,8 @@ try {
             layer.id = "ydd-simple-bg-fade";
             layer.setAttribute("aria-hidden", "true");
             document.body.prepend(layer);
-            releaseStartupHold();
-            layer.addEventListener("animationend", function () {
+            layer.addEventListener("transitionend", function () {
+              window.clearTimeout(startupPreloadTimeout);
               style.textContent = "body { background-image: url(" + objectUrl +
                 ") !important; background-size: cover !important; background-position: center !important; }";
               document.body.classList.remove("ydd-idb-fading");
@@ -519,10 +530,20 @@ try {
                 layer.remove();
               });
             }, { once: true });
+            var image = new Image();
+            image.src = objectUrl;
+            image.decode().catch(function () {}).then(function () {
+              if (startupPreloadTimedOut) return;
+              releaseStartupHold();
+              requestAnimationFrame(function () {
+                layer.style.opacity = "1";
+              });
+            });
           };
           if (document.body) showBackground();
           else document.addEventListener("DOMContentLoaded", showBackground, { once: true });
         } else {
+          window.clearTimeout(startupPreloadTimeout);
           if (hasIdbBg) finishStartupSurface();
           if (!imgUrl) {
             document.documentElement.classList.remove("ydd-custom-bg-pending");
@@ -532,7 +553,7 @@ try {
         if (p) p.remove();
       };
       getRequest.onerror = function () {
-        if (hasIdbBg) finishStartupSurface();
+        if (hasIdbBg) finishStartupFallback();
         if (!imgUrl) {
           document.documentElement.classList.remove("ydd-custom-bg-pending");
         }
@@ -541,21 +562,29 @@ try {
       };
     } else {
       db.close();
-      if (hasIdbBg) finishStartupSurface();
+      if (hasIdbBg) finishStartupFallback();
       var p = document.getElementById("idb-preloader");
       if (p) p.remove();
     }
   };
   request.onerror = function () {
-    if (hasIdbBg) finishStartupSurface();
+    if (hasIdbBg) finishStartupFallback();
     if (!imgUrl) {
       document.documentElement.classList.remove("ydd-custom-bg-pending");
     }
     var p = document.getElementById("idb-preloader");
     if (p) p.remove();
   };
+  request.onblocked = function () {
+    if (hasIdbBg) finishStartupFallback();
+  };
 } catch (e) {
   var p = document.getElementById("idb-preloader");
   if (p) p.remove();
+  document.documentElement.classList.remove(
+    "ydd-startup-hold",
+    "ydd-startup-fading",
+    "ydd-custom-bg-pending",
+  );
 }
 // [src/theme-init.js] YourDynamicDashboard V3.0.0 (Ditom Baroi Antu - 2025-26)

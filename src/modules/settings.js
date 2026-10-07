@@ -9,6 +9,7 @@ import {
   makeKeyboardInteractive,
   playNotificationSound,
   showCustomModal,
+  syncStartupCanvasAvailability,
 } from "../utils.js";
 import { secondStorage } from "../secondStorage.js";
 import {
@@ -1393,6 +1394,7 @@ export class SettingsManager {
       this.els.startupFade.checked =
         localStorage.getItem("startupFadeEnabled") !== "false";
     }
+    syncStartupCanvasAvailability();
 
     if (this.els.bgBlurSelect) {
       const savedBlur = state.get("bgBlurIntensity") || "0";
@@ -1454,7 +1456,7 @@ export class SettingsManager {
       document.body.classList.add("has-custom-bg");
       document.body.style.backgroundImage = `url(${bg})`;
       if (this.els.removeBg) this.els.removeBg.classList.remove("hidden");
-    } else {
+    } else if (localStorage.getItem("has_idb_bg") !== "true") {
       document.body.classList.remove("has-custom-bg");
     }
 
@@ -1747,6 +1749,7 @@ export class SettingsManager {
         localStorage.setItem("startupFadeEnabled", String(e.target.checked));
         const fullToggle = document.getElementById("fs-startup-fade-toggle");
         if (fullToggle) fullToggle.checked = e.target.checked;
+        syncStartupCanvasAvailability();
       });
     }
 

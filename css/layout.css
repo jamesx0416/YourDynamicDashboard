@@ -1,4 +1,12 @@
 /* Layout and columns */
+html.ydd-startup-hold body {
+  visibility: hidden !important;
+}
+
+html.ydd-startup-fading #sample-dark-background {
+  transition: none !important;
+}
+
 body {
   font-family: var(--ydd-font-family, "Outfit", system-ui, sans-serif);
   background-color: var(--bg-primary);

@@ -203,6 +203,28 @@ export function createEl(tag, className, text = "") {
   return el;
 }
 
+// The startup colour only paints when the startup fade is on, so grey the
+// pickers out otherwise. Both the mini settings and the full modal keep their
+// own copy of the controls, so update every one of them together.
+export function syncStartupCanvasAvailability() {
+  const enabled = localStorage.getItem("startupFadeEnabled") !== "false";
+  const ids = [
+    "startup-canvas-color-picker",
+    "startup-canvas-color-row",
+    "fs-startup-canvas-color",
+    "fs-startup-canvas-color-row",
+  ];
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.classList.toggle("disabled", !enabled);
+    // Colour inputs need the native disabled flag too, otherwise they stay
+    // focusable and keyboard-reachable behind the greyed-out row.
+    if (el instanceof HTMLInputElement) el.disabled = !enabled;
+  }
+  return enabled;
+}
+
 export function showCustomModal(
   message,
   isConfirm = false,
