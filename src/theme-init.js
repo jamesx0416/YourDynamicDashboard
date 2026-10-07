@@ -520,7 +520,12 @@ try {
             layer.id = "ydd-simple-bg-fade";
             layer.setAttribute("aria-hidden", "true");
             document.body.prepend(layer);
-            layer.addEventListener("transitionend", function () {
+            var fadeFinished = false;
+            var fadeCompletionTimeout = null;
+            var completeFade = function () {
+              if (fadeFinished || startupPreloadTimedOut) return;
+              fadeFinished = true;
+              window.clearTimeout(fadeCompletionTimeout);
               window.clearTimeout(startupPreloadTimeout);
               style.textContent = "body { background-image: url(" + objectUrl +
                 ") !important; background-size: cover !important; background-position: center !important; }";
@@ -529,16 +534,19 @@ try {
               requestAnimationFrame(function () {
                 layer.remove();
               });
-            }, { once: true });
+            };
+            layer.addEventListener("transitionend", completeFade, { once: true });
             var image = new Image();
             image.src = objectUrl;
-            image.decode().catch(function () {}).then(function () {
+            image.decode().then(function () {
               if (startupPreloadTimedOut) return;
               releaseStartupHold();
               requestAnimationFrame(function () {
+                if (startupPreloadTimedOut) return;
                 layer.style.opacity = "1";
+                fadeCompletionTimeout = window.setTimeout(completeFade, 300);
               });
-            });
+            }).catch(finishStartupFallback);
           };
           if (document.body) showBackground();
           else document.addEventListener("DOMContentLoaded", showBackground, { once: true });
