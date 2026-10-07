@@ -540,11 +540,12 @@ try {
             image.src = objectUrl;
             image.decode().then(function () {
               if (startupPreloadTimedOut) return;
+              window.clearTimeout(startupPreloadTimeout);
               releaseStartupHold();
+              fadeCompletionTimeout = window.setTimeout(completeFade, 500);
               requestAnimationFrame(function () {
-                if (startupPreloadTimedOut) return;
+                if (startupPreloadTimedOut || fadeFinished) return;
                 layer.style.opacity = "1";
-                fadeCompletionTimeout = window.setTimeout(completeFade, 300);
               });
             }).catch(finishStartupFallback);
           };
