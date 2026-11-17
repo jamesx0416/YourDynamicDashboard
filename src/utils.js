@@ -203,6 +203,16 @@ export function createEl(tag, className, text = "") {
   return el;
 }
 
+export function getStartupCanvasColor() {
+  const saved = localStorage.getItem("startupCanvasColor");
+  if (/^#[\da-f]{6}$/i.test(saved || "")) return saved;
+
+  const context = document.createElement("canvas").getContext("2d");
+  if (!context) return "#030303";
+  context.fillStyle = window.startupCanvasColor || "#030303";
+  return /^#[\da-f]{6}$/i.test(context.fillStyle) ? context.fillStyle : "#030303";
+}
+
 // The startup colour only paints when the startup fade is on, so grey the
 // pickers out otherwise. Both the mini settings and the full modal keep their
 // own copy of the controls, so update every one of them together.

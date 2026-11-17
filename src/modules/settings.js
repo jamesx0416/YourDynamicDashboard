@@ -6,6 +6,7 @@ import {
   createHoverPauseTimer,
   getGeocodingResults,
   getIconUrl,
+  getStartupCanvasColor,
   makeKeyboardInteractive,
   playNotificationSound,
   showCustomModal,
@@ -1385,10 +1386,7 @@ export class SettingsManager {
     if (this.els.locInput) this.els.locInput.value = state.get("yd_city") || "";
 
     if (this.els.startupCanvasColor) {
-      const startupCanvasColor = localStorage.getItem("startupCanvasColor");
-      if (/^#[\da-f]{6}$/i.test(startupCanvasColor || "")) {
-        this.els.startupCanvasColor.value = startupCanvasColor;
-      }
+      this.els.startupCanvasColor.value = getStartupCanvasColor();
     }
     if (this.els.startupFade) {
       this.els.startupFade.checked =

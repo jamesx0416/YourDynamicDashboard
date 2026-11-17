@@ -7,18 +7,12 @@ try {
       storedStartupCanvasColor || "",
     )
     ? storedStartupCanvasColor
-    : "#ffffff";
+    : null;
   var startupFadeEnabled =
-    localStorage.getItem("startupFadeEnabled") !== "false";
+    localStorage.getItem("startupFadeEnabled") !== "false" &&
+    !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   var startupSurfaceActive = startupFadeEnabled;
   var finalDocumentBackground = null;
-  if (startupSurfaceActive) {
-    document.documentElement.style.backgroundColor = startupCanvasColor;
-    document.documentElement.classList.add(
-      "ydd-startup-hold",
-      "ydd-startup-fading",
-    );
-  }
   var applyFinalDocumentBackground = function () {
     if (!startupSurfaceActive) return;
     if (finalDocumentBackground) {
@@ -57,116 +51,6 @@ try {
   if (localStorage.getItem("zenMode") === "true") {
     document.documentElement.classList.add("zen-mode-preload");
   }
-
-  // Theme color fallbacks
-  var THEME_COLORS = {
-    "default-light": "#c3c3c3",
-    "default-dark": "#030303",
-    "theme-1": "#000000",
-    "theme-2": "#000000",
-    "theme-3": "#bebebe",
-    "theme-4": "#90c69e",
-    "theme-5": "#ffa9d2",
-    "theme-6": "#0A043C",
-    "theme-7": "#0f0f15",
-    "theme-8": "#ded6ff",
-  };
-
-  var THEME_DARK_COLORS = {
-    "theme-3": "#1c2635",
-    "theme-4": "#14291d",
-    "theme-5": "#321727",
-    "theme-8": "#211d3b",
-  };
-
-  var THEME_LIGHT_COLORS = {
-    "theme-1": "#f4f4f4",
-    "theme-2": "#e7f3d0",
-    "theme-6": "#d8f7f7",
-    "theme-7": "#d9e2c5",
-  };
-
-  var dm = localStorage.getItem("darkMode");
-  var gm = localStorage.getItem("gradientModeActive");
-  var thId = (localStorage.getItem("normalThemeId") || '"default-dark"')
-    .replace(/^"|"$/g, "");
-
-  if (gm !== "true" && (dm === null || dm === "true")) {
-    document.documentElement.setAttribute("data-theme", "dark");
-    document.documentElement.setAttribute("data-theme-id", thId);
-    var preloadColor = (dm === null || dm === "true")
-      ? (THEME_DARK_COLORS[thId] || THEME_COLORS[thId] || "#030303")
-      : (THEME_LIGHT_COLORS[thId] || THEME_COLORS[thId] || "#c3c3c3");
-    document.documentElement.style.setProperty("--bg-primary", preloadColor);
-    finalDocumentBackground = preloadColor;
-    if (!startupSurfaceActive) {
-      document.documentElement.style.backgroundColor = preloadColor;
-    }
-  } else if (gm === "true") {
-    document.documentElement.classList.add("gradient-mode-active");
-    var gradientId = (localStorage.getItem("gradientThemeId") || "gradient")
-      .replace(/^"|"$/g, "");
-    document.documentElement.setAttribute(
-      "data-theme-id",
-      "gradient-" + gradientId,
-    );
-    finalDocumentBackground = "#302b63";
-    if (!startupSurfaceActive) {
-      document.documentElement.style.backgroundColor = "#302b63";
-    }
-  } else {
-    document.documentElement.setAttribute("data-theme", "light");
-    document.documentElement.setAttribute("data-theme-id", thId);
-    if (thId === "custom") {
-      var rawBgp = localStorage.getItem("custom---bg-primary");
-      var customBgp = readStoredColor(rawBgp);
-      if (customBgp) {
-        document.documentElement.style.setProperty("--bg-primary", customBgp);
-        finalDocumentBackground = customBgp;
-        if (!startupSurfaceActive) {
-          document.documentElement.style.backgroundColor = customBgp;
-        }
-      }
-    } else {
-      var color = THEME_LIGHT_COLORS[thId] || THEME_COLORS[thId] || "#c3c3c3";
-      document.documentElement.style.setProperty("--bg-primary", color);
-      finalDocumentBackground = color;
-      if (!startupSurfaceActive) {
-        document.documentElement.style.backgroundColor = color;
-      }
-    }
-  }
-
-  // Background state
-  var bgMode = localStorage.getItem("randomBgMode");
-  var bg = localStorage.getItem("backgroundImage");
-  var savedBg = localStorage.getItem("savedBgUrl");
-  var randomBgSchedule = localStorage.getItem("randomBgSchedule");
-  var randomBgCurrentPreview = localStorage.getItem("randomBgCurrentPreview");
-  var randomBgNextPreview = localStorage.getItem("randomBgNextPreview");
-  var randomBgNext = localStorage.getItem("randomBgNextUrl");
-  var bgTime = localStorage.getItem("randomBgTime");
-  var imgUrl = null;
-  var RANDOM_BG_MAX_WIDTH = 1920;
-  var RANDOM_BG_MAX_HEIGHT = 1080;
-
-  // Stored value readers
-  var readStoredUrl = function (value) {
-    if (!value || value === "null" || value === '"null"') return null;
-    var parsed = value;
-    try {
-      parsed = JSON.parse(value);
-    } catch (error) {
-    }
-    if (typeof parsed !== "string" || !parsed) return null;
-    try {
-      var url = new URL(parsed, document.baseURI);
-      if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-      return url.href;
-    } catch (error) {
-      return null;
-    }
-  };
 
   var isSafeThemeColor = function (value) {
     var color = typeof value === "string" ? value.trim() : "";
@@ -215,6 +99,124 @@ try {
     }
     var color = typeof parsed === "string" ? parsed.trim() : "";
     return isSafeThemeColor(color) ? color : null;
+  };
+  // Theme color fallbacks
+  var THEME_COLORS = {
+    "default-light": "#c3c3c3",
+    "default-dark": "#030303",
+    "theme-1": "#000000",
+    "theme-2": "#000000",
+    "theme-3": "#bebebe",
+    "theme-4": "#90c69e",
+    "theme-5": "#ffa9d2",
+    "theme-6": "#0A043C",
+    "theme-7": "#0f0f15",
+    "theme-8": "#ded6ff",
+  };
+
+  var THEME_DARK_COLORS = {
+    "theme-3": "#1c2635",
+    "theme-4": "#14291d",
+    "theme-5": "#321727",
+    "theme-8": "#211d3b",
+  };
+
+  var THEME_LIGHT_COLORS = {
+    "theme-1": "#f4f4f4",
+    "theme-2": "#e7f3d0",
+    "theme-6": "#d8f7f7",
+    "theme-7": "#d9e2c5",
+  };
+
+  var dm = localStorage.getItem("darkMode");
+  var gm = localStorage.getItem("gradientModeActive");
+  var thId = (localStorage.getItem("normalThemeId") || '"default-dark"')
+    .replace(/^"|"$/g, "");
+
+  if (gm !== "true" && (dm === null || dm === "true")) {
+    document.documentElement.setAttribute("data-theme", "dark");
+    document.documentElement.setAttribute("data-theme-id", thId);
+    var preloadColor = (thId === "custom" &&
+      readStoredColor(localStorage.getItem("custom---bg-primary"))) ||
+      THEME_DARK_COLORS[thId] || THEME_COLORS[thId] || "#030303";
+    document.documentElement.style.setProperty("--bg-primary", preloadColor);
+    finalDocumentBackground = preloadColor;
+    if (!startupSurfaceActive) {
+      document.documentElement.style.backgroundColor = preloadColor;
+    }
+  } else if (gm === "true") {
+    document.documentElement.classList.add("gradient-mode-active");
+    var gradientId = (localStorage.getItem("gradientThemeId") || "gradient")
+      .replace(/^"|"$/g, "");
+    document.documentElement.setAttribute(
+      "data-theme-id",
+      "gradient-" + gradientId,
+    );
+    finalDocumentBackground = "#302b63";
+    if (!startupSurfaceActive) {
+      document.documentElement.style.backgroundColor = "#302b63";
+    }
+  } else {
+    document.documentElement.setAttribute("data-theme", "light");
+    document.documentElement.setAttribute("data-theme-id", thId);
+    if (thId === "custom") {
+      var rawBgp = localStorage.getItem("custom---bg-primary");
+      var customBgp = readStoredColor(rawBgp);
+      if (customBgp) {
+        document.documentElement.style.setProperty("--bg-primary", customBgp);
+        finalDocumentBackground = customBgp;
+        if (!startupSurfaceActive) {
+          document.documentElement.style.backgroundColor = customBgp;
+        }
+      }
+    } else {
+      var color = THEME_LIGHT_COLORS[thId] || THEME_COLORS[thId] || "#c3c3c3";
+      document.documentElement.style.setProperty("--bg-primary", color);
+      finalDocumentBackground = color;
+      if (!startupSurfaceActive) {
+        document.documentElement.style.backgroundColor = color;
+      }
+    }
+  }
+
+  startupCanvasColor ||= finalDocumentBackground || "#030303";
+  if (startupSurfaceActive) {
+    document.documentElement.style.backgroundColor = startupCanvasColor;
+    document.documentElement.classList.add(
+      "ydd-startup-hold",
+      "ydd-startup-fading",
+    );
+  }
+
+  // Background state
+  var bgMode = localStorage.getItem("randomBgMode");
+  var bg = localStorage.getItem("backgroundImage");
+  var savedBg = localStorage.getItem("savedBgUrl");
+  var randomBgSchedule = localStorage.getItem("randomBgSchedule");
+  var randomBgCurrentPreview = localStorage.getItem("randomBgCurrentPreview");
+  var randomBgNextPreview = localStorage.getItem("randomBgNextPreview");
+  var randomBgNext = localStorage.getItem("randomBgNextUrl");
+  var bgTime = localStorage.getItem("randomBgTime");
+  var imgUrl = null;
+  var RANDOM_BG_MAX_WIDTH = 1920;
+  var RANDOM_BG_MAX_HEIGHT = 1080;
+
+  // Stored value readers
+  var readStoredUrl = function (value) {
+    if (!value || value === "null" || value === '"null"') return null;
+    var parsed = value;
+    try {
+      parsed = JSON.parse(value);
+    } catch (error) {
+    }
+    if (typeof parsed !== "string" || !parsed) return null;
+    try {
+      var url = new URL(parsed, document.baseURI);
+      if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+      return url.href;
+    } catch (error) {
+      return null;
+    }
   };
 
   var isCompatiblePicsumUrl = function (value) {
@@ -410,9 +412,15 @@ try {
     window.clearTimeout(startupPreloadTimeout);
     document.getElementById("idb-preloader")?.remove();
     document.getElementById("ydd-simple-bg-fade")?.remove();
-    document.getElementById("ydd-idb-background")?.remove();
+    var backgroundStyle = document.getElementById("ydd-idb-background");
+    if (backgroundStyle && preloadObjectUrl && preloadBackgroundEnabled) {
+      backgroundStyle.textContent = "body { background-image: url(" + preloadObjectUrl +
+        ") !important; background-size: cover !important; background-position: center !important; }";
+    } else {
+      backgroundStyle?.remove();
+    }
     document.body?.classList.remove("ydd-idb-fading");
-    if (!imgUrl && !document.body?.style.backgroundImage) {
+    if (!imgUrl && !preloadObjectUrl && !document.body?.style.backgroundImage) {
       document.body?.classList.remove("has-custom-bg");
     }
     document.documentElement.classList.remove("ydd-custom-bg-pending");
@@ -460,10 +468,6 @@ try {
   };
   request.onsuccess = function (event) {
     var db = event.target.result;
-    if (startupPreloadTimedOut) {
-      db.close();
-      return;
-    }
     if (db.objectStoreNames.contains("images")) {
       var transaction = db.transaction("images", "readonly");
       var store = transaction.objectStore("images");
@@ -485,14 +489,15 @@ try {
       };
 
       getRequest.onsuccess = function (e) {
-        if (startupPreloadTimedOut) return;
         var storedBackground = e.target.result;
         var storedRandomBlob =
           randomUsesCurrentRecord && storedBackground?.blob instanceof Blob &&
             isSafeStoredRandomEntryUrl(storedBackground?.url)
             ? storedBackground.blob
             : null;
-        var usableBackground = storedRandomBlob || storedBackground;
+        var usableBackground = randomUsesCurrentRecord
+          ? storedRandomBlob
+          : storedBackground instanceof Blob ? storedBackground : null;
         if (
           usableBackground && preloadBackgroundEnabled &&
           (bgMode !== '"random"' || randomUsesCurrentRecord)
@@ -503,7 +508,8 @@ try {
           window.__yddPreloadBackgroundUrl = objectUrl;
           var style = document.createElement("style");
           style.id = "ydd-idb-background";
-          style.textContent = startupFadeEnabled
+          var fadeBackground = startupSurfaceActive && !startupPreloadTimedOut;
+          style.textContent = fadeBackground
             ? "body.ydd-idb-fading { background-color: transparent !important; background-image: none !important; transition: none !important; }" +
               "#ydd-simple-bg-fade { position: fixed; inset: 0; z-index: -2;" +
               " background-image: url(" + objectUrl + "); background-size: cover;" +
@@ -514,7 +520,7 @@ try {
           document.head.appendChild(style);
           var showBackground = function () {
             document.body.classList.add("has-custom-bg");
-            if (!startupFadeEnabled) return;
+            if (!fadeBackground || startupPreloadTimedOut) return;
             document.body.classList.add("ydd-idb-fading");
             var layer = document.createElement("div");
             layer.id = "ydd-simple-bg-fade";
@@ -552,6 +558,9 @@ try {
           if (document.body) showBackground();
           else document.addEventListener("DOMContentLoaded", showBackground, { once: true });
         } else {
+          if (!randomUsesCurrentRecord && !usableBackground && hasIdbBg && preloadBackgroundEnabled) {
+            localStorage.removeItem("has_idb_bg");
+          }
           window.clearTimeout(startupPreloadTimeout);
           if (hasIdbBg) finishStartupSurface();
           if (!imgUrl) {

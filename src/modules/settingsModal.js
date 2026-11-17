@@ -5,6 +5,7 @@ import {
   createHoverPauseTimer,
   getGeocodingResults,
   getIconUrl,
+  getStartupCanvasColor,
   makeKeyboardInteractive,
   playNotificationSound,
   showCustomModal,
@@ -2074,10 +2075,7 @@ export class FullSettingsModal {
     this.els.fsScPosition.value = state.get("shortcutsPosition") || "bottom";
     this.els.fsLocInput.value = state.get("yd_city") || "";
     this.els.fsBlurSelect.value = state.get("bgBlurIntensity") || "0";
-    const startupCanvasColor = localStorage.getItem("startupCanvasColor");
-    if (/^#[\da-f]{6}$/i.test(startupCanvasColor || "")) {
-      this.els.fsStartupCanvasColor.value = startupCanvasColor;
-    }
+    this.els.fsStartupCanvasColor.value = getStartupCanvasColor();
     this.els.fsStartupFade.checked =
       localStorage.getItem("startupFadeEnabled") !== "false";
     syncStartupCanvasAvailability();
