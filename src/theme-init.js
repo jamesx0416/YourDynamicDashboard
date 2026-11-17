@@ -9,7 +9,7 @@ try {
     ? storedStartupCanvasColor
     : null;
   var startupFadeEnabled =
-    localStorage.getItem("startupFadeEnabled") !== "false" &&
+    localStorage.getItem("startupFadeEnabled") === "true" &&
     !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   var startupSurfaceActive = startupFadeEnabled;
   var finalDocumentBackground = null;
@@ -103,7 +103,7 @@ try {
   // Theme color fallbacks
   var THEME_COLORS = {
     "default-light": "#c3c3c3",
-    "default-dark": "#030303",
+    "default-dark": "#0a0a0a",
     "theme-1": "#000000",
     "theme-2": "#000000",
     "theme-3": "#bebebe",
@@ -123,9 +123,23 @@ try {
 
   var THEME_LIGHT_COLORS = {
     "theme-1": "#f4f4f4",
-    "theme-2": "#e7f3d0",
-    "theme-6": "#d8f7f7",
+    "theme-2": "#c9d378",
+    "theme-6": "#b8eaea",
     "theme-7": "#d9e2c5",
+  };
+
+  // Older saved gradients may not have individual color values yet.
+  var GRADIENT_COLORS = {
+    "electric-sky": "#1580fd",
+    "cotton-candy": "#eb76be",
+    "glacier": "#20e3b2",
+    "bio-lime": "#42bd00",
+    "dawn-bloom": "#ffd6a5",
+    "grey": "#c9c9c9",
+    "royal": "#9500eb",
+    "deep-space": "#302b63",
+    "ember": "#480048",
+    "forest": "#295038",
   };
 
   var dm = localStorage.getItem("darkMode");
@@ -152,9 +166,14 @@ try {
       "data-theme-id",
       "gradient-" + gradientId,
     );
-    finalDocumentBackground = "#302b63";
+    var gradientColorThemeId = (localStorage.getItem("gradientColorThemeId") || "")
+      .replace(/^"|"$/g, "");
+    var storedGradientColor = gradientColorThemeId === gradientId
+      ? readStoredColor(localStorage.getItem("gradientColor1"))
+      : null;
+    finalDocumentBackground = storedGradientColor || GRADIENT_COLORS[gradientId] || "#302b63";
     if (!startupSurfaceActive) {
-      document.documentElement.style.backgroundColor = "#302b63";
+      document.documentElement.style.backgroundColor = finalDocumentBackground;
     }
   } else {
     document.documentElement.setAttribute("data-theme", "light");

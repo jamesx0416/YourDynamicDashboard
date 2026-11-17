@@ -209,15 +209,26 @@ export function getStartupCanvasColor() {
 
   const context = document.createElement("canvas").getContext("2d");
   if (!context) return "#030303";
-  context.fillStyle = window.startupCanvasColor || "#030303";
+  const themeColor = document.body.classList.contains("gradient-mode-active")
+    ? document.body.style.getPropertyValue("--gradient-color-1")
+    : document.body.style.getPropertyValue("--bg-primary");
+  context.fillStyle = themeColor || window.startupCanvasColor || "#030303";
   return /^#[\da-f]{6}$/i.test(context.fillStyle) ? context.fillStyle : "#030303";
+}
+
+export function syncStartupCanvasColor() {
+  const color = getStartupCanvasColor();
+  for (const id of ["startup-canvas-color-picker", "fs-startup-canvas-color"]) {
+    const input = document.getElementById(id);
+    if (input) input.value = color;
+  }
 }
 
 // The startup colour only paints when the startup fade is on, so grey the
 // pickers out otherwise. Both the mini settings and the full modal keep their
 // own copy of the controls, so update every one of them together.
 export function syncStartupCanvasAvailability() {
-  const enabled = localStorage.getItem("startupFadeEnabled") !== "false";
+  const enabled = localStorage.getItem("startupFadeEnabled") === "true";
   const ids = [
     "startup-canvas-color-picker",
     "startup-canvas-color-row",

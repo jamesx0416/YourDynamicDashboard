@@ -11,6 +11,7 @@ import {
   playNotificationSound,
   showCustomModal,
   syncStartupCanvasAvailability,
+  syncStartupCanvasColor,
 } from "../utils.js";
 import { secondStorage } from "../secondStorage.js";
 import {
@@ -1390,7 +1391,7 @@ export class SettingsManager {
     }
     if (this.els.startupFade) {
       this.els.startupFade.checked =
-        localStorage.getItem("startupFadeEnabled") !== "false";
+        localStorage.getItem("startupFadeEnabled") === "true";
     }
     syncStartupCanvasAvailability();
 
@@ -2443,6 +2444,7 @@ export class SettingsManager {
     this.updateAutoThemeGlowState();
     this.updateDarkModeControlState();
     document.body.classList.remove("force-white-text");
+    syncStartupCanvasColor();
   }
 
   applyCustomThemeUI(colors = {}) {
@@ -2473,6 +2475,7 @@ export class SettingsManager {
     ).forEach(([key, val]) => {
       document.body.style.setProperty(key, val);
     });
+    syncStartupCanvasColor();
   }
 
   isDarkModeAvailableForTheme(theme) {
@@ -2608,6 +2611,7 @@ export class SettingsManager {
     this.updateWarningText();
     this.updateAutoThemeGlowState();
     this.updateDarkModeControlState();
+    syncStartupCanvasColor();
   }
 
   updateGradientColor(index, value) {

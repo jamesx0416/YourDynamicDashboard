@@ -2077,7 +2077,7 @@ export class FullSettingsModal {
     this.els.fsBlurSelect.value = state.get("bgBlurIntensity") || "0";
     this.els.fsStartupCanvasColor.value = getStartupCanvasColor();
     this.els.fsStartupFade.checked =
-      localStorage.getItem("startupFadeEnabled") !== "false";
+      localStorage.getItem("startupFadeEnabled") === "true";
     syncStartupCanvasAvailability();
     this.els.fsRandomBgSchedule.value = state.get("randomBgSchedule") || "1m";
 
