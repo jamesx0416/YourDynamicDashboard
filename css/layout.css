@@ -43,13 +43,14 @@ body:not(.loaded) {
 
 .layout-container {
   display: flex;
-  justify-content: center;
-  align-items: center;
+  justify-content: safe center;
+  align-items: safe center;
   width: 100%;
   height: 100%;
   padding: 2rem 4rem;
   gap: clamp(12rem, calc(100vw - 1078px), 20rem);
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
 }
 .column-left {
@@ -68,7 +69,7 @@ body:not(.loaded) {
 @media (max-width: 1270px) {
   .layout-container {
     flex-direction: column;
-    justify-content: center;
+    justify-content: safe center;
     gap: 0.75rem;
     padding: 1.5rem;
   }
@@ -79,16 +80,6 @@ body:not(.loaded) {
   }
   .column-right {
     gap: 0.75rem;
-  }
-
-  body.shortcuts-at-bottom:not(.zen-mode) .layout-container {
-    height: calc(100% - 8rem);
-  }
-
-  body.shortcuts-at-top:not(.zen-mode) .layout-container {
-    position: relative;
-    top: 8rem;
-    height: calc(100% - 8rem);
   }
 
   body.shortcuts-at-left:not(.zen-mode) .layout-container {
@@ -103,16 +94,6 @@ body:not(.loaded) {
 }
 
 @media (max-width: 600px), (max-height: 700px) {
-  body.shortcuts-at-bottom:not(.zen-mode) .layout-container {
-    height: calc(100% - 13rem);
-  }
-
-  body.shortcuts-at-top:not(.zen-mode) .layout-container {
-    position: relative;
-    top: 13rem;
-    height: calc(100% - 13rem);
-  }
-
   body.shortcuts-at-left:not(.zen-mode) .layout-container {
     width: calc(100% - 6rem);
     margin-left: 6rem;
@@ -125,10 +106,6 @@ body:not(.loaded) {
 }
 
 @media (max-width: 1270px) and (max-height: 700px) {
-  .layout-container {
-    justify-content: flex-start;
-  }
-
   .column-left,
   .column-right {
     flex-shrink: 0;
